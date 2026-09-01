@@ -1,15 +1,22 @@
 <!doctype html>
 <!--
-  REEMBOLSOS — VARIANTE VISUAL "CONSOLE FINANCEIRO" (2026-08-31)
+  REEMBOLSOS — VARIANTE VISUAL "CONSOLE FINANCEIRO" (2026-08-31, tons ajustados)
   ===================================================================
   Mesma funcionalidade, campos e regras de negócio do index.html (site
   principal, hospedado no GitHub Pages) — mesma Data API, mesmo token,
   mesmos endpoints, mesma lógica de validação e submissão. Só muda a
-  casca visual: paleta, tipografia e componentes inspirados no
+  casca visual: paleta e tipografia inspiradas no
   mockup-2-console-financeiro.html (pasta Recorrência) — KPIs em cards
   com barra colorida no topo + ícone, números em IBM Plex Mono, filtros
   em segmented control (pill-group) em vez de chips arredondados, tabela
   mais densa com tags de status compactas.
+
+  Paleta escura ajustada em 2026-09-01: o tom "preto" original do mockup 2
+  (quase preto puro, #06090c/#0b0f14) ficou escuro demais pro gosto do
+  time — trocado por um deslocamento uniforme (+21,+19,+21 em RGB) que
+  parte do #1B1C21 (o cinza-escuro que a Bianca costuma usar nos outros
+  sites), preservando a mesma hierarquia relativa de contraste entre
+  fundo/card/hover/borda que o mockup original tinha.
 
   Isto é uma alternativa de estilo pra comparação lado a lado — ainda não
   hospedada em lugar nenhum. Se for adotada, publicar do mesmo jeito que
@@ -33,11 +40,11 @@
     theme: {
       extend: {
         colors: {
-          'bianca-bg-main':        '#06090c',
-          'bianca-bg-card':        '#0b0f14',
-          'bianca-bg-hover':       '#111820',
-          'bianca-border':         '#1c2530',
-          'bianca-border-soft':    '#161d26',
+          'bianca-bg-main':        '#1b1c21',
+          'bianca-bg-card':        '#202229',
+          'bianca-bg-hover':       '#262b35',
+          'bianca-border':         '#313845',
+          'bianca-border-soft':    '#2b303b',
           'bianca-brand':          '#09bc8a',
           'bianca-blue':           '#3a7ef0',
           'bianca-yellow':         '#f0a020',
@@ -68,7 +75,7 @@
   .glow-yellow { box-shadow: 0 0 16px rgba(240, 160, 32, 0.18); }
 
   .rb-card { transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease; }
-  .rb-card:hover { transform: translateY(-2px); box-shadow: 0 14px 30px -14px rgba(0,0,0,0.6); border-color: #2a3644; }
+  .rb-card:hover { transform: translateY(-2px); box-shadow: 0 14px 30px -14px rgba(0,0,0,0.6); border-color: #3f4959; }
   .rb-card-clickable { cursor: pointer; }
 
   /* Barra colorida no topo do card + chip de ícone — assinatura visual do
@@ -100,7 +107,7 @@
 
   /* Segmented control (pill-group) pros filtros, igual ao toolbar do console
      financeiro — substitui os chips arredondados individuais do site original. */
-  .rb-pill-group { display: flex; background: #0b0f14; border: 1px solid #1c2530; border-radius: 12px; padding: 4px; gap: 2px; }
+  .rb-pill-group { display: flex; background: #202229; border: 1px solid #313845; border-radius: 12px; padding: 4px; gap: 2px; }
   .rb-pill-group button { border: none; background: transparent; color: #8fa3b8; font-family: inherit; font-size: 12px; font-weight: 600; padding: 8px 15px; border-radius: 9px; cursor: pointer; transition: all .15s ease; white-space: nowrap; }
   .rb-pill-group button:hover { color: #dde4ed; }
   .rb-pill-group button.on { background: #09bc8a; color: #04211a; }
@@ -113,7 +120,7 @@
 
   .rb-select { position: relative; }
   .rb-select-trigger { transition: border-color .15s, background-color .15s; }
-  .rb-select-trigger:hover { background-color: #111820; border-color: #2a3644; }
+  .rb-select-trigger:hover { background-color: #262b35; border-color: #3f4959; }
   /* position:fixed (não absolute) + coordenadas calculadas em JS ao abrir
      (rbToggleSelect) — assim o painel nunca faz o modal por trás precisar
      rolar pra mostrar ele inteiro; só o painel rola dentro de si mesmo. */
@@ -125,13 +132,13 @@
   .rb-check-label { position: relative; }
   .rb-check-input { position: absolute; opacity: 0; width: 0; height: 0; }
   .rb-check-box {
-    width: 20px; height: 20px; border-radius: 7px; border: 1.5px solid #1c2530;
-    background: #0b0f14; display: inline-flex; align-items: center; justify-content: center;
+    width: 20px; height: 20px; border-radius: 7px; border: 1.5px solid #313845;
+    background: #202229; display: inline-flex; align-items: center; justify-content: center;
     transition: background-color .15s, border-color .15s, box-shadow .15s;
     flex-shrink: 0;
   }
   .rb-check-icon { width: 11px; height: 9px; opacity: 0; transition: opacity .1s; }
-  .rb-check-label:hover .rb-check-box { border-color: #2a3644; }
+  .rb-check-label:hover .rb-check-box { border-color: #3f4959; }
   .rb-check-input:checked + .rb-check-box { background: #09bc8a; border-color: #09bc8a; }
   .rb-check-input:checked + .rb-check-box .rb-check-icon { opacity: 1; }
   .rb-check-input:focus-visible + .rb-check-box { box-shadow: 0 0 0 3px rgba(9,188,138,0.25); }
@@ -141,7 +148,7 @@
   .rb-overlay { display: none; }
   .rb-overlay.open { display: flex; }
 
-  .rb-step-bar { height: 6px; border-radius: 999px; background: #1c2530; overflow: hidden; }
+  .rb-step-bar { height: 6px; border-radius: 999px; background: #313845; overflow: hidden; }
   .rb-step-bar-fill { height: 100%; border-radius: 999px; background: #09bc8a; transition: width .3s ease; }
 
   @keyframes rb-fade-up { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
