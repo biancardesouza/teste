@@ -538,17 +538,75 @@
     <button class="rb-fin-tab-btn" data-tab="pagos" onclick="rbFinSetTab('pagos')">Pagos</button>
   </div>
 
-  <!-- KPI -->
-  <div class="rb-card rb-kpi relative overflow-hidden bg-bianca-bg-card border border-bianca-border rounded-2xl p-5 flex items-center justify-between rb-enter" style="--kpi-color:#09bc8a; animation-delay:.05s">
-    <div class="flex items-center gap-3">
-      <div class="rb-kpi-chip"><svg viewBox="0 0 20 20" fill="none"><path d="M4 10h12M10 4v12" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></div>
-      <span class="text-[11px] uppercase tracking-wide text-bianca-text-secondary font-bold">Número de reembolsos</span>
+  <!-- KPIs — um conjunto de cards diferente por aba (Solicitações = 1 card,
+       Em aberto = 2, Pagos = 3), trocado em rbFinSetTab(). Cada valor é
+       recalculado em rbFinUpdateKpis() a partir dos dados reais, nunca fixo. -->
+  <div id="rb-fin-kpi-todos" class="rb-enter" style="animation-delay:.05s">
+    <div class="rb-card rb-kpi relative overflow-hidden bg-bianca-bg-card border border-bianca-border rounded-2xl p-5 flex items-center justify-between" style="--kpi-color:#09bc8a;">
+      <div class="flex items-center gap-3">
+        <div class="rb-kpi-chip"><svg viewBox="0 0 20 20" fill="none"><path d="M4 10h12M10 4v12" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></div>
+        <span class="text-[11px] uppercase tracking-wide text-bianca-text-secondary font-bold">Número de reembolsos</span>
+      </div>
+      <p id="rb-fin-kpi-todos-count" class="font-mono text-[28px] font-bold">—</p>
+      <svg class="absolute right-5 top-1/2 -translate-y-1/2 w-16 h-16 opacity-[0.07] pointer-events-none" viewBox="0 0 24 24" fill="none" style="color:#09bc8a">
+        <path d="M6 2h12v20l-3-2-3 2-3-2-3 2z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/>
+        <path d="M9 7h6M9 11h6M9 15h3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
+      </svg>
     </div>
-    <p id="rb-fin-stat-count" class="font-mono text-[28px] font-bold">—</p>
-    <svg class="absolute right-5 top-1/2 -translate-y-1/2 w-16 h-16 opacity-[0.07] pointer-events-none" viewBox="0 0 24 24" fill="none" style="color:#09bc8a">
-      <path d="M6 2h12v20l-3-2-3 2-3-2-3 2z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/>
-      <path d="M9 7h6M9 11h6M9 15h3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
-    </svg>
+  </div>
+
+  <div id="rb-fin-kpi-aberto" class="rb-hidden grid grid-cols-1 md:grid-cols-2 gap-3.5 rb-enter" style="animation-delay:.05s">
+    <div class="rb-card rb-kpi relative overflow-hidden bg-bianca-bg-card border border-bianca-border rounded-2xl p-5 flex items-center justify-between" style="--kpi-color:#3a7ef0;">
+      <div class="flex items-center gap-3">
+        <div class="rb-kpi-chip"><svg viewBox="0 0 20 20" fill="none"><circle cx="10" cy="10" r="7.2" stroke="currentColor" stroke-width="1.6"/><path d="M10 6v4l2.6 2.6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></div>
+        <span class="text-[11px] uppercase tracking-wide text-bianca-text-secondary font-bold">Número de reembolsos solicitados</span>
+      </div>
+      <p id="rb-fin-kpi-aberto-count" class="font-mono text-[28px] font-bold">—</p>
+      <svg class="absolute right-5 top-1/2 -translate-y-1/2 w-16 h-16 opacity-[0.07] pointer-events-none" viewBox="0 0 20 20" fill="none" style="color:#3a7ef0"><circle cx="10" cy="10" r="7.2" stroke="currentColor" stroke-width="1.4"/><path d="M10 6v4l2.6 2.6" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
+    </div>
+    <div class="rb-card rb-kpi relative overflow-hidden bg-bianca-bg-card border border-bianca-border rounded-2xl p-5 flex items-center justify-between" style="--kpi-color:#09bc8a;">
+      <div class="flex items-center gap-3">
+        <div class="rb-kpi-chip"><svg viewBox="0 0 24 24" fill="none"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+        <span id="rb-fin-kpi-aberto-total-label" class="text-[11px] uppercase tracking-wide text-bianca-text-secondary font-bold">Total solicitado</span>
+      </div>
+      <p id="rb-fin-kpi-aberto-total" class="font-mono text-[28px] font-bold">—</p>
+      <svg class="absolute right-5 top-1/2 -translate-y-1/2 w-16 h-16 opacity-[0.07] pointer-events-none" viewBox="0 0 24 24" fill="none" style="color:#09bc8a"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </div>
+  </div>
+
+  <div id="rb-fin-kpi-pagos" class="rb-hidden grid grid-cols-1 md:grid-cols-3 gap-3.5 rb-enter" style="animation-delay:.05s">
+    <div class="rb-card rb-kpi relative overflow-hidden bg-bianca-bg-card border border-bianca-border rounded-2xl p-5 flex items-center justify-between" style="--kpi-color:#09bc8a;">
+      <div class="flex items-center gap-3">
+        <div class="rb-kpi-chip"><svg viewBox="0 0 20 20" fill="none"><circle cx="10" cy="10" r="7.2" stroke="currentColor" stroke-width="1.6"/><path d="M6.5 10.2l2.3 2.3L13.7 7.3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+        <span class="text-[11px] uppercase tracking-wide text-bianca-text-secondary font-bold">Número de reembolsos pagos</span>
+      </div>
+      <p id="rb-fin-kpi-pagos-count" class="font-mono text-[28px] font-bold">—</p>
+      <svg class="absolute right-5 top-1/2 -translate-y-1/2 w-16 h-16 opacity-[0.07] pointer-events-none" viewBox="0 0 20 20" fill="none" style="color:#09bc8a"><circle cx="10" cy="10" r="7.2" stroke="currentColor" stroke-width="1.4"/><path d="M6.5 10.2l2.3 2.3L13.7 7.3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </div>
+    <div class="rb-card rb-kpi relative overflow-hidden bg-bianca-bg-card border border-bianca-border rounded-2xl p-5 flex items-center justify-between" style="--kpi-color:#09bc8a;">
+      <div class="flex items-center gap-3">
+        <div class="rb-kpi-chip"><svg viewBox="0 0 24 24" fill="none"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+        <span id="rb-fin-kpi-pagos-total-label" class="text-[11px] uppercase tracking-wide text-bianca-text-secondary font-bold">Total pago no mês</span>
+      </div>
+      <p id="rb-fin-kpi-pagos-total" class="font-mono text-[28px] font-bold">—</p>
+      <svg class="absolute right-5 top-1/2 -translate-y-1/2 w-16 h-16 opacity-[0.07] pointer-events-none" viewBox="0 0 24 24" fill="none" style="color:#09bc8a"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </div>
+    <div class="rb-card bg-bianca-bg-card border border-bianca-border rounded-2xl p-5">
+      <div class="flex items-center gap-3 mb-3">
+        <div class="rb-kpi-chip" style="--kpi-color:#09bc8a;"><svg viewBox="0 0 20 20" fill="none"><rect x="3" y="4" width="14" height="13" rx="2" stroke="currentColor" stroke-width="1.6"/><path d="M3 8h14M7 2v3M13 2v3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></div>
+        <span class="text-[11px] uppercase tracking-wide text-bianca-text-secondary font-bold">Datas de pagamento</span>
+      </div>
+      <div class="flex gap-2.5">
+        <div class="flex-1 text-center bg-bianca-bg-main border border-bianca-border-soft rounded-lg py-1.5">
+          <p class="text-[9px] text-bianca-text-tertiary uppercase tracking-wide">Dia</p>
+          <p class="text-sm font-bold text-bianca-brand font-mono">14</p>
+        </div>
+        <div class="flex-1 text-center bg-bianca-bg-main border border-bianca-border-soft rounded-lg py-1.5">
+          <p class="text-[9px] text-bianca-text-tertiary uppercase tracking-wide">Dia</p>
+          <p class="text-sm font-bold text-bianca-brand font-mono">28</p>
+        </div>
+      </div>
+    </div>
   </div>
 
   <!-- TOOLBAR / BUSCA -->
@@ -1586,6 +1644,7 @@
       statusSolicitacao,
       aprSolicitacao: formatDateBR(raw['Data da Aprovação Solicitação']),
       statusFinanceiro,
+      aprFinanceiroRaw: raw['Data de Aprovação Financeiro'] || '',
       aprFinanceiro: formatDateBR(raw['Data de Aprovação Financeiro']),
       clienteId: raw['cliente'] || null,
       descricao: raw['Descrição Extra'] || raw['Descrição despesa'] || '',
@@ -1646,12 +1705,48 @@
     }
   }
 
+  // Cada aba mostra um conjunto diferente de KPIs (o "quadrado" muda de
+  // verdade) — só um grupo fica visível por vez, o resto tem rb-hidden.
+  const RB_FIN_KPI_GROUPS = { todos: 'rb-fin-kpi-todos', aberto: 'rb-fin-kpi-aberto', pagos: 'rb-fin-kpi-pagos' };
+
   function rbFinSetTab(tab) {
     rbFinActiveTab = tab;
     rbFinCurrentPage = 1;
     document.querySelectorAll('.rb-fin-tab-btn').forEach(btn => btn.classList.toggle('on', btn.dataset.tab === tab));
     document.getElementById('rb-fin-table-title').textContent = rbFinTabLabels[tab];
+    Object.entries(RB_FIN_KPI_GROUPS).forEach(([key, id]) => {
+      document.getElementById(id).classList.toggle('rb-hidden', key !== tab);
+    });
     rbFinRenderTable();
+  }
+
+  // Recalcula os 3 conjuntos de KPI a partir dos dados reais (nunca fixo) —
+  // roda a cada render pra ficar sempre em sincronia com a busca também.
+  function rbFinUpdateKpis(search) {
+    const bySearch = r => r.nome.toLowerCase().includes(search);
+    const now = new Date();
+    const isCurrentMonth = (iso) => {
+      if (!iso) return false;
+      const d = new Date(iso);
+      return !isNaN(d) && d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+    };
+    const mesAtual = now.toLocaleDateString('pt-BR', { month: 'long' });
+    const mesAtualCap = mesAtual.charAt(0).toUpperCase() + mesAtual.slice(1);
+
+    const todosF = rbFinRequests.filter(bySearch);
+    document.getElementById('rb-fin-kpi-todos-count').textContent = todosF.length || '—';
+
+    const abertoF = rbFinRequests.filter(r => r.group === 'aberto' && bySearch(r));
+    document.getElementById('rb-fin-kpi-aberto-count').textContent = abertoF.length || '—';
+    const totalAbertoMes = abertoF.filter(r => isCurrentMonth(r.criacaoRaw)).reduce((s, r) => s + r.valorNum, 0);
+    document.getElementById('rb-fin-kpi-aberto-total-label').textContent = `Total solicitado - ${mesAtualCap}`;
+    document.getElementById('rb-fin-kpi-aberto-total').textContent = totalAbertoMes ? formatBRL(totalAbertoMes) : '—';
+
+    const pagosF = rbFinRequests.filter(r => r.group === 'pagos' && bySearch(r));
+    document.getElementById('rb-fin-kpi-pagos-count').textContent = pagosF.length || '—';
+    const totalPagoMes = pagosF.filter(r => isCurrentMonth(r.aprFinanceiroRaw)).reduce((s, r) => s + r.valorNum, 0);
+    document.getElementById('rb-fin-kpi-pagos-total-label').textContent = `Total pago no mês - ${mesAtualCap}`;
+    document.getElementById('rb-fin-kpi-pagos-total').textContent = totalPagoMes ? formatBRL(totalPagoMes) : '—';
   }
 
   function rbFinRenderTable() {
@@ -1662,7 +1757,7 @@
     );
 
     document.getElementById('rb-fin-empty').classList.toggle('rb-hidden', filtered.length > 0);
-    document.getElementById('rb-fin-stat-count').textContent = filtered.length;
+    rbFinUpdateKpis(search);
 
     const totalPages = Math.max(1, Math.ceil(filtered.length / RB_FIN_PAGE_SIZE));
     if (rbFinCurrentPage > totalPages) rbFinCurrentPage = totalPages;
