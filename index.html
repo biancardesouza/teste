@@ -66,6 +66,16 @@
      reembolso-elemento-html.html), nunca ganha uma barra própria dele. */
   html, body { margin: 0; overflow: hidden; }
   #rb-page, #rb-page-financeiro { background-color: transparent; }
+  /* Exceção: com um modal aberto, o iframe vira tela cheia (position:fixed,
+     ver reembolso-elemento-html.html) por cima da barra lateral do Bubble —
+     nesse modo a transparência vira problema, porque deixa a página do
+     Bubble por trás aparecer através do fundo escuro semi-transparente do
+     modal (bg-black/70), criando um efeito de conteúdo "duplicado"/fantasma
+     por trás, e o scroll do mouse acaba rolando a página de baixo em vez do
+     modal. Enquanto isso, o fundo precisa ficar opaco de verdade. */
+  body.rb-overlay-active,
+  body.rb-overlay-active #rb-page,
+  body.rb-overlay-active #rb-page-financeiro { background-color: #1b1c21; }
 
   .glow-brand  { box-shadow: 0 0 16px rgba(9, 188, 138, 0.22); }
   .glow-yellow { box-shadow: 0 0 16px rgba(240, 160, 32, 0.18); }
@@ -1349,12 +1359,14 @@
   function rbOpenOverlay(id) {
     document.getElementById(id).classList.add('open');
     rbOpenOverlayCount++;
+    document.body.classList.add('rb-overlay-active');
     try { window.parent.postMessage({ type: 'rb-modal-open' }, '*'); } catch (e) {}
   }
 
   function closeOverlay(id) {
     document.getElementById(id).classList.remove('open');
     rbOpenOverlayCount = Math.max(0, rbOpenOverlayCount - 1);
+    if (rbOpenOverlayCount === 0) document.body.classList.remove('rb-overlay-active');
     if (rbOpenOverlayCount === 0) {
       try { window.parent.postMessage({ type: 'rb-modal-close' }, '*'); } catch (e) {}
       rbNotifyParentHeight();
