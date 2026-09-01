@@ -1961,6 +1961,12 @@
       document.getElementById('rb-page').classList.remove('rb-hidden');
       loadReembolsos();
     }
+    // Tirar o rb-hidden é uma mudança de atributo (classe), não de childList —
+    // o MutationObserver lá embaixo só escuta childList, então essa revelação
+    // sozinha não disparava o recálculo de altura. É basicamente isso que
+    // cortava a tabela: o iframe ficava com a altura de antes de qualquer
+    // conteúdo aparecer.
+    rbNotifyParentHeight();
   }
   rbInit();
 
@@ -1980,7 +1986,22 @@
   }
   window.addEventListener('load', rbNotifyParentHeight);
   window.addEventListener('resize', rbNotifyParentHeight);
-  new MutationObserver(rbNotifyParentHeight).observe(document.body, { childList: true, subtree: true });
+  // attributes/attributeFilter: pega também toggles de rb-hidden (mostrar/
+  // esconder os grupos de KPI ao trocar de aba, ou revelar a página inteira
+  // em rbInit) — só childList não bastava, esses são troca de classe, não
+  // inserção/remoção de elemento.
+  new MutationObserver(rbNotifyParentHeight).observe(document.body, {
+    childList: true, subtree: true, attributes: true, attributeFilter: ['class'],
+  });
+  // ResizeObserver é o jeito certo de saber quando o TAMANHO RENDERIZADO de
+  // verdade mudou — pega casos que nem o 'resize' da window nem o
+  // MutationObserver cobrem, como zoom do navegador (o zoom muda a largura
+  // efetiva em pixels CSS e pode reflowar tudo sem disparar 'resize' a tempo,
+  // ou disparar antes do reflow terminar). Sintoma exato reportado: a 100%
+  // de zoom a tabela cortava e escondia os botões de página; a 90% não.
+  if (typeof ResizeObserver !== 'undefined') {
+    new ResizeObserver(rbNotifyParentHeight).observe(document.body);
+  }
 </script>
 </body>
 </html>
