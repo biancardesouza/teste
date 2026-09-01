@@ -1624,7 +1624,18 @@
   function deriveGroupFinanceiro(statusSolicitacao, statusFinanceiro) {
     if (statusFinanceiro === 'Aprovado') return 'pagos';
     if (statusSolicitacao === 'Aprovado' && statusFinanceiro === 'Enviado') return 'aberto';
-    return null; // só aparece na aba "Solicitações" (todos, sem filtro)
+    return null;
+  }
+
+  // "Número de reembolsos" (aba Solicitações) — fórmula conferida direto na
+  // Data API contra a página de referência real (deu exatamente 53 nos dados
+  // de 2026-09-01): é só Status Financeiro = "Não Enviado" ou "Enviado", ou
+  // seja, o que ainda está em movimento no financeiro. Fica de fora: pago
+  // (Aprovado), negado (Negado) e cancelado (Cancelado) — mesmo que a
+  // solicitação em si tenha sido negada, se o financeiro já "fechou" aquele
+  // registro (Aprovado/Negado/Cancelado), ele não conta mais aqui.
+  function isReembolsoEmMovimento(statusFinanceiro) {
+    return statusFinanceiro === 'Não Enviado' || statusFinanceiro === 'Enviado';
   }
 
   function mapReembolsoApiFinanceiro(raw, userInfo) {
@@ -1662,7 +1673,7 @@
   let rbFinRequests = [];
   let rbFinActiveTab = 'todos';
   let rbFinCurrentPage = 1;
-  const RB_FIN_PAGE_SIZE = 10;
+  const RB_FIN_PAGE_SIZE = 5; // mesmo tamanho da tabela de colaborador — tabela maior que isso passa da altura calculada do iframe e corta o final.
   const rbFinTabLabels = { todos: 'Reembolsos solicitados', aberto: 'Reembolsos em aberto', pagos: 'Reembolsos pagos' };
 
   async function loadReembolsosFinanceiro() {
@@ -1733,17 +1744,19 @@
     const mesAtual = now.toLocaleDateString('pt-BR', { month: 'long' });
     const mesAtualCap = mesAtual.charAt(0).toUpperCase() + mesAtual.slice(1);
 
-    // "Número de reembolsos" (Solicitações) = tudo que AINDA NÃO foi pago —
-    // negado, em andamento, esperando comprovante ou esperando conferência
-    // financeira. Nunca conta os já pagos (esses são a aba "Pagos").
-    const todosF = rbFinRequests.filter(r => r.group !== 'pagos' && bySearch(r));
+    // "Número de reembolsos" (Solicitações) = ver isReembolsoEmMovimento acima.
+    const todosF = rbFinRequests.filter(r => isReembolsoEmMovimento(r.statusFinanceiro) && bySearch(r));
     document.getElementById('rb-fin-kpi-todos-count').textContent = todosF.length || '—';
 
+    // Em aberto = precisa de movimento do RH (comprovante já enviado,
+    // aguardando conferência financeira). Contagem e valor somam TODOS os
+    // itens desse grupo, sem recorte de mês — não foi pedido recorte aqui,
+    // só na aba Pagos (onde faz sentido: lá é sobre quando o dinheiro sai).
     const abertoF = rbFinRequests.filter(r => r.group === 'aberto' && bySearch(r));
     document.getElementById('rb-fin-kpi-aberto-count').textContent = abertoF.length || '—';
-    const totalAbertoMes = abertoF.filter(r => isCurrentMonth(r.criacaoRaw)).reduce((s, r) => s + r.valorNum, 0);
-    document.getElementById('rb-fin-kpi-aberto-total-label').textContent = `Total solicitado - ${mesAtualCap}`;
-    document.getElementById('rb-fin-kpi-aberto-total').textContent = totalAbertoMes ? formatBRL(totalAbertoMes) : '—';
+    const totalAberto = abertoF.reduce((s, r) => s + r.valorNum, 0);
+    document.getElementById('rb-fin-kpi-aberto-total-label').textContent = 'Total solicitado';
+    document.getElementById('rb-fin-kpi-aberto-total').textContent = totalAberto ? formatBRL(totalAberto) : '—';
 
     // "Pagos" é sempre relativo ao MÊS (contagem e valor) — quem paga é o
     // financeiro, então a data que conta é "Data de Aprovação Financeiro",
@@ -1759,10 +1772,11 @@
 
   function rbFinRenderTable() {
     const search = document.getElementById('rb-fin-search').value.toLowerCase();
-    // Aba "Solicitações" (todos) exclui os já pagos — mesma regra do KPI
-    // acima, pra tabela e card nunca mostrarem números diferentes.
+    // Aba "Solicitações" (todos) usa a mesma regra do KPI (isReembolsoEmMovimento)
+    // — tabela e card sempre com o mesmo número, nunca um "todos" mais largo
+    // que o outro.
     const filtered = rbFinRequests.filter(r =>
-      (rbFinActiveTab === 'todos' ? r.group !== 'pagos' : r.group === rbFinActiveTab) &&
+      (rbFinActiveTab === 'todos' ? isReembolsoEmMovimento(r.statusFinanceiro) : r.group === rbFinActiveTab) &&
       r.nome.toLowerCase().includes(search)
     );
 
