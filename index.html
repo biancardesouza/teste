@@ -1,0 +1,1368 @@
+<!doctype html>
+<!--
+  REEMBOLSOS — VARIANTE VISUAL "CONSOLE FINANCEIRO" (2026-08-31)
+  ===================================================================
+  Mesma funcionalidade, campos e regras de negócio do index.html (site
+  principal, hospedado no GitHub Pages) — mesma Data API, mesmo token,
+  mesmos endpoints, mesma lógica de validação e submissão. Só muda a
+  casca visual: paleta, tipografia e componentes inspirados no
+  mockup-2-console-financeiro.html (pasta Recorrência) — KPIs em cards
+  com barra colorida no topo + ícone, números em IBM Plex Mono, filtros
+  em segmented control (pill-group) em vez de chips arredondados, tabela
+  mais densa com tags de status compactas.
+
+  Isto é uma alternativa de estilo pra comparação lado a lado — ainda não
+  hospedada em lugar nenhum. Se for adotada, publicar do mesmo jeito que
+  o index.html (GitHub Pages) e trocar a URL no reembolso-elemento-html.html.
+
+  Como esse site sabe quem é o usuário logado (idêntico ao index.html):
+  O Bubble precisa passar isso pela URL do iframe, como query params:
+    ?uid=<Current User's unique id>
+    &uname=<Current User's Nome completo>
+    &cid=<Search for Clientes (Responsavel=Current User):sorted by Created Date descending:first item's unique id>
+    &eid=<mesma busca:first item's Empresa's unique id>
+-->
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Reembolsos — Console</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+  tailwind.config = {
+    theme: {
+      extend: {
+        colors: {
+          'bianca-bg-main':        '#06090c',
+          'bianca-bg-card':        '#0b0f14',
+          'bianca-bg-hover':       '#111820',
+          'bianca-border':         '#1c2530',
+          'bianca-border-soft':    '#161d26',
+          'bianca-brand':          '#09bc8a',
+          'bianca-blue':           '#3a7ef0',
+          'bianca-yellow':         '#f0a020',
+          'bianca-red':            '#e8484a',
+          'bianca-neutral':        '#8fa3b8',
+          'bianca-text-primary':   '#dde4ed',
+          'bianca-text-secondary': '#8fa3b8',
+          'bianca-text-tertiary':  '#4a5a6a',
+          'bianca-bronze':         '#cd7f32',
+        },
+        fontFamily: {
+          sans: ['Plus Jakarta Sans', 'system-ui', 'sans-serif'],
+          mono: ['IBM Plex Mono', 'monospace'],
+        },
+      }
+    }
+  };
+</script>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<style>
+  /* Sem cor de fundo própria de propósito — mesmo motivo do index.html: o
+     iframe fica transparente e quem pinta o fundo é a página do Bubble por
+     baixo, sem rolagem própria (overflow: hidden), só a barra da página. */
+  html, body { margin: 0; overflow: hidden; }
+  #rb-page { background-color: transparent; }
+
+  .glow-brand  { box-shadow: 0 0 16px rgba(9, 188, 138, 0.22); }
+  .glow-yellow { box-shadow: 0 0 16px rgba(240, 160, 32, 0.18); }
+
+  .rb-card { transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease; }
+  .rb-card:hover { transform: translateY(-2px); box-shadow: 0 14px 30px -14px rgba(0,0,0,0.6); border-color: #2a3644; }
+  .rb-card-clickable { cursor: pointer; }
+
+  /* Barra colorida no topo do card + chip de ícone — assinatura visual do
+     "console financeiro" (mockup 2), aplicada nos 4 cards de estatística. */
+  .rb-kpi { position: relative; overflow: hidden; }
+  .rb-kpi::before {
+    content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px;
+    background: var(--kpi-color, #09bc8a); opacity: .7;
+    transition: opacity .15s ease, box-shadow .15s ease;
+  }
+  .rb-kpi:hover::before { opacity: 1; box-shadow: 0 0 14px var(--kpi-color, #09bc8a); }
+  .rb-kpi-chip {
+    width: 32px; height: 32px; border-radius: 9px;
+    background: color-mix(in srgb, var(--kpi-color, #09bc8a) 16%, transparent);
+    color: var(--kpi-color, #09bc8a);
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  }
+  .rb-kpi-chip svg { width: 16px; height: 16px; }
+
+  .rb-row { transition: background-color 0.15s ease, box-shadow 0.15s ease; }
+  .rb-row:hover { box-shadow: inset 0 0 0 1px rgba(221,228,237,0.05), 0 4px 14px -6px rgba(0,0,0,0.5); }
+
+  .rb-btn-primary { transition: transform 0.15s ease, box-shadow 0.15s ease, opacity 0.15s ease; }
+  .rb-btn-primary:hover { transform: translateY(-1px); box-shadow: 0 0 24px rgba(9,188,138,0.4); }
+  .rb-btn-primary:active { transform: translateY(0); }
+
+  .rb-chip { transition: all 0.15s ease; }
+  .rb-chip:hover { transform: translateY(-1px); }
+
+  /* Segmented control (pill-group) pros filtros, igual ao toolbar do console
+     financeiro — substitui os chips arredondados individuais do site original. */
+  .rb-pill-group { display: flex; background: #0b0f14; border: 1px solid #1c2530; border-radius: 12px; padding: 4px; gap: 2px; }
+  .rb-pill-group button { border: none; background: transparent; color: #8fa3b8; font-family: inherit; font-size: 12px; font-weight: 600; padding: 8px 15px; border-radius: 9px; cursor: pointer; transition: all .15s ease; white-space: nowrap; }
+  .rb-pill-group button:hover { color: #dde4ed; }
+  .rb-pill-group button.on { background: #09bc8a; color: #04211a; }
+
+  .rb-input { transition: border-color 0.15s ease, box-shadow 0.15s ease; }
+  .rb-input:focus { box-shadow: 0 0 0 3px rgba(9,188,138,0.15); }
+
+  .rb-dropzone { transition: border-color .15s, background-color .15s, box-shadow .15s; }
+  .rb-dropzone.rb-dragover { border-color: #09bc8a; background-color: rgba(9,188,138,0.07); box-shadow: 0 0 0 3px rgba(9,188,138,0.12); }
+
+  .rb-select { position: relative; }
+  .rb-select-trigger { transition: border-color .15s, background-color .15s; }
+  .rb-select-trigger:hover { background-color: #111820; border-color: #2a3644; }
+  /* position:fixed (não absolute) + coordenadas calculadas em JS ao abrir
+     (rbToggleSelect) — assim o painel nunca faz o modal por trás precisar
+     rolar pra mostrar ele inteiro; só o painel rola dentro de si mesmo. */
+  .rb-select-panel { position: fixed; z-index: 200; max-height: 220px; overflow-y: auto; }
+  .rb-select-option { transition: background-color .12s; }
+  .rb-select-chevron { transition: transform .15s ease; }
+  .rb-select.open .rb-select-chevron { transform: rotate(180deg); }
+
+  .rb-check-label { position: relative; }
+  .rb-check-input { position: absolute; opacity: 0; width: 0; height: 0; }
+  .rb-check-box {
+    width: 20px; height: 20px; border-radius: 7px; border: 1.5px solid #1c2530;
+    background: #0b0f14; display: inline-flex; align-items: center; justify-content: center;
+    transition: background-color .15s, border-color .15s, box-shadow .15s;
+    flex-shrink: 0;
+  }
+  .rb-check-icon { width: 11px; height: 9px; opacity: 0; transition: opacity .1s; }
+  .rb-check-label:hover .rb-check-box { border-color: #2a3644; }
+  .rb-check-input:checked + .rb-check-box { background: #09bc8a; border-color: #09bc8a; }
+  .rb-check-input:checked + .rb-check-box .rb-check-icon { opacity: 1; }
+  .rb-check-input:focus-visible + .rb-check-box { box-shadow: 0 0 0 3px rgba(9,188,138,0.25); }
+
+  .rb-hidden { display: none !important; }
+  input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(0.7); cursor: pointer; }
+  .rb-overlay { display: none; }
+  .rb-overlay.open { display: flex; }
+
+  .rb-step-bar { height: 6px; border-radius: 999px; background: #1c2530; overflow: hidden; }
+  .rb-step-bar-fill { height: 100%; border-radius: 999px; background: #09bc8a; transition: width .3s ease; }
+
+  @keyframes rb-fade-up { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+  .rb-enter { animation: rb-fade-up .35s ease both; }
+
+  #rb-toast-container { pointer-events: none; }
+  .rb-toast { pointer-events: auto; animation: rb-toast-in .25s ease both; }
+  .rb-toast.rb-toast-out { animation: rb-toast-out .18s ease both; }
+  @keyframes rb-toast-in { from { opacity: 0; transform: translateX(24px); } to { opacity: 1; transform: translateX(0); } }
+  @keyframes rb-toast-out { from { opacity: 1; transform: translateX(0); } to { opacity: 0; transform: translateX(24px); } }
+</style>
+</head>
+<body class="font-sans text-bianca-text-primary">
+
+<div id="rb-toast-container" class="fixed top-4 right-4 z-[9999] flex flex-col gap-2 items-end"></div>
+
+<div id="rb-page" class="p-10 space-y-8">
+
+  <!-- HEADER -->
+  <div class="flex items-end justify-between flex-wrap gap-4 pb-5 border-b border-bianca-border rb-enter">
+    <div class="space-y-1.5">
+      <p class="text-[10.5px] text-bianca-text-tertiary uppercase tracking-[.18em] font-bold">Pagamentos · Reembolsos</p>
+      <h1 class="text-2xl font-bold tracking-tight">Console de reembolsos</h1>
+    </div>
+    <button class="rb-btn-primary px-5 py-2.5 rounded-xl bg-bianca-brand text-bianca-bg-main text-sm font-semibold glow-brand" onclick="openRequestModal()">
+      Solicitar
+    </button>
+  </div>
+
+  <!-- BANNER DE ERRO (mostrado se a URL não veio com os parâmetros do Bubble) -->
+  <div id="rb-ctx-error" class="rb-hidden bg-bianca-red/10 border border-bianca-red/30 text-bianca-red text-sm rounded-xl p-4">
+    Esta página precisa ser aberta de dentro do Nexiplay (faltam os parâmetros de identificação do usuário na URL). Se você chegou aqui direto, volte pro app e acesse via a página de Reembolsos.
+  </div>
+
+  <!-- KPI ROW (calculados no JS a partir do que foi buscado na Data API) -->
+  <div class="grid grid-cols-1 md:grid-cols-4 gap-3.5 rb-enter" style="animation-delay:.05s">
+
+    <div class="rb-card rb-kpi bg-bianca-bg-card border border-bianca-border rounded-2xl p-[18px] space-y-3" style="--kpi-color:#09bc8a;">
+      <div class="flex items-center justify-between">
+        <span class="text-[11px] uppercase tracking-wide text-bianca-text-secondary font-bold">Número de reembolsos</span>
+        <div class="rb-kpi-chip"><svg viewBox="0 0 20 20" fill="none"><path d="M4 10h12M10 4v12" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></div>
+      </div>
+      <p id="rb-stat-count" class="font-mono text-[23px] font-bold">—</p>
+    </div>
+
+    <div class="rb-card rb-kpi bg-bianca-bg-card border border-bianca-border rounded-2xl p-[18px] space-y-3" style="--kpi-color:#3a7ef0;">
+      <div class="flex items-center justify-between">
+        <span class="text-[11px] uppercase tracking-wide text-bianca-text-secondary font-bold">Total solicitado em despesas</span>
+        <div class="rb-kpi-chip"><svg viewBox="0 0 24 24" fill="none"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+      </div>
+      <p id="rb-stat-total" class="font-mono text-[23px] font-bold">—</p>
+    </div>
+
+    <div class="rb-card rb-kpi bg-bianca-bg-card border border-bianca-border rounded-2xl p-[18px] space-y-3" style="--kpi-color:#09bc8a;">
+      <div class="flex items-center justify-between">
+        <span class="text-[11px] uppercase tracking-wide text-bianca-text-secondary font-bold">Despesas pagas no mês</span>
+        <div class="rb-kpi-chip"><svg viewBox="0 0 20 20" fill="none"><path d="M4 12l4-4 3 3 5-6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+      </div>
+      <p id="rb-stat-paid" class="font-mono text-[23px] font-bold">—</p>
+      <p id="rb-stat-paid-sub" class="text-[10.5px] text-bianca-text-tertiary"></p>
+    </div>
+
+    <div class="rb-card rb-kpi rb-card-clickable bg-bianca-bg-card border border-bianca-yellow/30 rounded-2xl p-[18px] space-y-3 glow-yellow" style="--kpi-color:#f0a020;" onclick="openActionPopup()">
+      <div class="flex items-center justify-between">
+        <span class="text-[11px] uppercase tracking-wide text-bianca-yellow font-bold">Precisam de ação sua</span>
+        <div class="rb-kpi-chip"><svg viewBox="0 0 20 20" fill="none"><path d="M10 6v5M10 14h.01" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="10" cy="10" r="7.2" stroke="currentColor" stroke-width="1.6"/></svg></div>
+      </div>
+      <p id="rb-action-count" class="font-mono text-[23px] font-bold">0</p>
+      <p class="text-[10.5px] text-bianca-text-tertiary">Clique para ver quais solicitações</p>
+    </div>
+
+  </div>
+
+  <!-- TOOLBAR / FILTERS -->
+  <div class="flex items-center justify-between flex-wrap gap-3 rb-enter" style="animation-delay:.1s">
+    <div class="rb-pill-group" id="rb-filter-bar">
+      <button class="rb-filter-btn on" data-filter="todos" onclick="setFilter('todos')">Todos</button>
+      <button class="rb-filter-btn" data-filter="acao" onclick="setFilter('acao')">Precisa de ação</button>
+      <button class="rb-filter-btn" data-filter="andamento" onclick="setFilter('andamento')">Em andamento</button>
+      <button class="rb-filter-btn" data-filter="concluidos" onclick="setFilter('concluidos')">Concluídos</button>
+    </div>
+    <div class="relative">
+      <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-[13px] h-[13px] text-bianca-text-tertiary pointer-events-none" viewBox="0 0 20 20" fill="none"><circle cx="9" cy="9" r="6" stroke="currentColor" stroke-width="1.6"/><path d="M17 17l-3.5-3.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+      <input id="rb-search" type="text" placeholder="Buscar por nome ou tipo..." oninput="rbOnSearchInput()"
+        class="rb-input pl-9 pr-4 py-2.5 rounded-xl bg-bianca-bg-card border border-bianca-border text-bianca-text-primary text-[12.5px] placeholder:text-bianca-text-tertiary focus:outline-none focus:border-bianca-brand w-64" />
+    </div>
+  </div>
+
+  <!-- TABLE -->
+  <div class="bg-bianca-bg-card border border-bianca-border rounded-2xl overflow-hidden rb-enter" style="animation-delay:.15s">
+    <div class="px-5 py-4 border-b border-bianca-border flex items-center justify-between">
+      <p class="text-[13.5px] font-bold">Histórico de reembolso</p>
+      <p id="rb-filter-label" class="text-[11.5px] text-bianca-text-tertiary font-mono"></p>
+    </div>
+    <div class="overflow-x-auto">
+      <table class="w-full min-w-[760px]">
+        <thead>
+          <tr class="bg-bianca-bg-hover">
+            <th class="text-left text-[10px] uppercase tracking-[.09em] text-bianca-text-tertiary font-bold px-5 py-2.5">Nome</th>
+            <th class="text-left text-[10px] uppercase tracking-[.09em] text-bianca-text-tertiary font-bold px-5 py-2.5">Tipo</th>
+            <th class="text-left text-[10px] uppercase tracking-[.09em] text-bianca-text-tertiary font-bold px-5 py-2.5">Criação</th>
+            <th class="text-left text-[10px] uppercase tracking-[.09em] text-bianca-text-tertiary font-bold px-5 py-2.5">Status solicitação</th>
+            <th class="text-left text-[10px] uppercase tracking-[.09em] text-bianca-text-tertiary font-bold px-5 py-2.5">Apr. solicitação</th>
+            <th class="text-left text-[10px] uppercase tracking-[.09em] text-bianca-text-tertiary font-bold px-5 py-2.5">Status financeiro</th>
+            <th class="text-left text-[10px] uppercase tracking-[.09em] text-bianca-text-tertiary font-bold px-5 py-2.5">Apr. financeiro</th>
+            <th class="text-right text-[10px] uppercase tracking-[.09em] text-bianca-text-tertiary font-bold px-5 py-2.5">Valor</th>
+            <th class="px-5 py-2.5"></th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-bianca-border-soft" id="rb-tbody"></tbody>
+      </table>
+    </div>
+    <div id="rb-empty" class="rb-hidden px-5 py-10 text-center text-sm text-bianca-text-secondary">Nenhum reembolso encontrado com esse filtro.</div>
+    <div id="rb-pagination" class="rb-hidden flex items-center justify-between px-5 py-3 border-t border-bianca-border">
+      <button id="rb-page-prev" class="px-3.5 py-1.5 rounded-lg border border-bianca-border text-xs font-medium text-bianca-text-secondary hover:bg-bianca-bg-hover hover:text-bianca-text-primary disabled:opacity-40 disabled:cursor-not-allowed transition-colors" onclick="rbChangePage(-1)">← Anterior</button>
+      <p id="rb-page-label" class="text-xs text-bianca-text-secondary font-mono"></p>
+      <button id="rb-page-next" class="px-3.5 py-1.5 rounded-lg border border-bianca-border text-xs font-medium text-bianca-text-secondary hover:bg-bianca-bg-hover hover:text-bianca-text-primary disabled:opacity-40 disabled:cursor-not-allowed transition-colors" onclick="rbChangePage(1)">Próxima →</button>
+    </div>
+  </div>
+
+  <!-- ACTION POPUP -->
+  <div id="rb-action-overlay" class="rb-overlay fixed inset-0 bg-black/70 items-center justify-center z-50 p-6">
+    <div class="bg-bianca-bg-card border border-bianca-border rounded-2xl overflow-hidden w-full max-w-md max-h-[90vh] flex flex-col shadow-2xl shadow-black/60">
+      <div class="flex items-center justify-between px-6 py-5 border-b border-bianca-border shrink-0">
+        <h3 class="text-lg font-bold">O que precisa da sua ação</h3>
+        <button class="text-bianca-text-secondary hover:text-bianca-text-primary transition-colors" onclick="closeOverlay('rb-action-overlay')">✕</button>
+      </div>
+      <div id="rb-action-list" class="p-4 space-y-2 overflow-y-auto"></div>
+    </div>
+  </div>
+
+  <!-- REQUEST MODAL -->
+  <div id="rb-request-overlay" class="rb-overlay fixed inset-0 bg-black/70 items-center justify-center z-50 p-6">
+    <div class="bg-bianca-bg-card border border-bianca-border rounded-2xl overflow-hidden w-full max-w-lg max-h-[90vh] flex flex-col shadow-2xl shadow-black/60">
+      <div class="flex items-center justify-between px-6 py-5 border-b border-bianca-border shrink-0">
+        <h3 class="text-lg font-bold">Solicite uma despesa</h3>
+        <button class="text-bianca-text-secondary hover:text-bianca-text-primary transition-colors" onclick="closeOverlay('rb-request-overlay')">✕</button>
+      </div>
+
+      <div class="overflow-y-auto">
+      <div class="px-6 pt-5">
+        <div class="flex gap-2">
+          <div class="rb-step-bar flex-1"><div id="rb-step-fill-1" class="rb-step-bar-fill" style="width:100%"></div></div>
+          <div class="rb-step-bar flex-1"><div id="rb-step-fill-2" class="rb-step-bar-fill" style="width:0%"></div></div>
+          <div class="rb-step-bar flex-1"><div id="rb-step-fill-3" class="rb-step-bar-fill" style="width:0%"></div></div>
+        </div>
+        <div class="flex justify-between mt-2">
+          <p id="rb-step-label-1" class="text-xs font-semibold text-bianca-text-primary">1. Aviso</p>
+          <p id="rb-step-label-2" class="text-xs font-semibold text-bianca-text-tertiary">2. Informações</p>
+          <p id="rb-step-label-3" class="text-xs font-semibold text-bianca-text-tertiary">3. Tipo</p>
+        </div>
+      </div>
+
+      <div id="rb-step-1" class="p-6 space-y-4">
+        <div class="border border-bianca-border rounded-xl p-4 text-xs text-bianca-text-secondary leading-relaxed space-y-2.5">
+          <p><span class="text-bianca-blue font-semibold">Transporte</span> — quando a passagem precisar ser comprada, a administração cuida da compra.</p>
+          <p><span class="text-bianca-yellow font-semibold">Alimentação</span> — fora da base, limite de R$ 150,00/dia.</p>
+          <p><span class="text-bianca-brand font-semibold">Estadia</span> — a administração fica responsável pela reserva.</p>
+        </div>
+        <p class="text-xs text-bianca-text-secondary">Leia com atenção antes de continuar — essas regras valem para o reembolso que você vai solicitar agora.</p>
+        <button class="rb-btn-primary w-full px-5 py-2.5 rounded-xl bg-bianca-brand text-bianca-bg-main text-sm font-semibold glow-brand" onclick="goToStep(2)">Entendi, continuar →</button>
+      </div>
+
+      <div id="rb-step-2" class="rb-hidden p-6 space-y-4">
+        <div id="rb-f-tipo" class="rb-select" data-value="Viagem">
+          <label class="text-xs font-semibold text-bianca-text-tertiary uppercase tracking-wide">Tipo de reembolso</label>
+          <button type="button" class="rb-select-trigger w-full mt-1.5 flex items-center justify-between px-4 py-2.5 rounded-xl bg-bianca-bg-main border border-bianca-border text-sm text-left" onclick="rbToggleSelect(this)">
+            <span class="rb-select-label text-bianca-text-primary">Viagem</span>
+            <svg class="rb-select-chevron w-4 h-4 text-bianca-text-secondary" viewBox="0 0 20 20" fill="none"><path d="M5 7.5L10 12.5L15 7.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+          <div class="rb-select-panel hidden bg-bianca-bg-card border border-bianca-border rounded-xl shadow-xl shadow-black/50 overflow-hidden">
+            <div class="rb-select-option px-4 py-2.5 text-sm hover:bg-bianca-bg-hover cursor-pointer" onclick="rbSelectOption(this)">Viagem</div>
+            <div class="rb-select-option px-4 py-2.5 text-sm hover:bg-bianca-bg-hover cursor-pointer" onclick="rbSelectOption(this)">Extras</div>
+            <div class="rb-select-option px-4 py-2.5 text-sm hover:bg-bianca-bg-hover cursor-pointer" onclick="rbSelectOption(this)">Despesa direta</div>
+          </div>
+        </div>
+
+        <div id="rb-viagem-fields" class="space-y-4">
+          <div>
+            <label class="text-xs font-semibold text-bianca-text-tertiary uppercase tracking-wide">Quantas pessoas irão viajar?</label>
+            <input id="rb-f-viajantes" placeholder="nº de pessoas" class="rb-input w-full mt-1.5 px-4 py-2.5 rounded-xl bg-bianca-bg-main border border-bianca-border text-bianca-text-primary text-sm placeholder:text-bianca-text-tertiary focus:outline-none focus:border-bianca-brand" />
+          </div>
+
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="text-xs font-semibold text-bianca-text-tertiary uppercase tracking-wide">Data de ida</label>
+              <input id="rb-f-ida" type="date" class="rb-input font-mono w-full mt-1.5 px-4 py-2.5 rounded-xl bg-bianca-bg-main border border-bianca-border text-bianca-text-primary text-sm focus:outline-none focus:border-bianca-brand" />
+            </div>
+            <div>
+              <label class="text-xs font-semibold text-bianca-text-tertiary uppercase tracking-wide">Data de volta</label>
+              <input id="rb-f-volta" type="date" class="rb-input font-mono w-full mt-1.5 px-4 py-2.5 rounded-xl bg-bianca-bg-main border border-bianca-border text-bianca-text-primary text-sm focus:outline-none focus:border-bianca-brand" />
+            </div>
+          </div>
+
+          <div id="rb-f-objetivo" class="rb-select" data-value="">
+            <label class="text-xs font-semibold text-bianca-text-tertiary uppercase tracking-wide">Objetivo</label>
+            <button type="button" class="rb-select-trigger w-full mt-1.5 flex items-center justify-between px-4 py-2.5 rounded-xl bg-bianca-bg-main border border-bianca-border text-sm text-left" onclick="rbToggleSelect(this)">
+              <span class="rb-select-label text-bianca-text-tertiary">Selecione</span>
+              <svg class="rb-select-chevron w-4 h-4 text-bianca-text-secondary" viewBox="0 0 20 20" fill="none"><path d="M5 7.5L10 12.5L15 7.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </button>
+            <div class="rb-select-panel hidden bg-bianca-bg-card border border-bianca-border rounded-xl shadow-xl shadow-black/50 overflow-hidden">
+              <div class="rb-select-option px-4 py-2.5 text-sm hover:bg-bianca-bg-hover cursor-pointer" onclick="rbSelectOption(this)">Cliente</div>
+              <div class="rb-select-option px-4 py-2.5 text-sm hover:bg-bianca-bg-hover cursor-pointer" onclick="rbSelectOption(this)">Evento</div>
+            </div>
+          </div>
+
+          <div id="rb-f-cliente-wrap" class="rb-hidden">
+            <label class="text-xs font-semibold text-bianca-text-tertiary uppercase tracking-wide">Cliente</label>
+            <div id="rb-f-cliente" class="rb-select" data-value="">
+              <button type="button" class="rb-select-trigger w-full mt-1.5 flex items-center justify-between px-4 py-2.5 rounded-xl bg-bianca-bg-main border border-bianca-border text-sm text-left" onclick="rbToggleSelect(this)">
+                <span class="rb-select-label text-bianca-text-tertiary">Selecione o cliente</span>
+                <svg class="rb-select-chevron w-4 h-4 text-bianca-text-secondary" viewBox="0 0 20 20" fill="none"><path d="M5 7.5L10 12.5L15 7.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              </button>
+              <div class="rb-select-panel hidden bg-bianca-bg-card border border-bianca-border rounded-xl shadow-xl shadow-black/50 overflow-hidden">
+                <div class="p-2 border-b border-bianca-border">
+                  <input type="text" placeholder="Buscar cliente..." oninput="rbFilterClienteOptions(this.value)"
+                    class="rb-input w-full px-3 py-1.5 rounded-lg bg-bianca-bg-main border border-bianca-border text-bianca-text-primary text-sm placeholder:text-bianca-text-tertiary focus:outline-none focus:border-bianca-brand" />
+                </div>
+                <div id="rb-cliente-options-list" class="max-h-52 overflow-y-auto"></div>
+              </div>
+            </div>
+          </div>
+
+          <div id="rb-f-nome-objetivo-wrap" class="rb-hidden">
+            <label class="text-xs font-semibold text-bianca-text-tertiary uppercase tracking-wide">Nome do evento</label>
+            <input id="rb-f-nome-objetivo" placeholder="Ex: Feira tecnológica" class="rb-input w-full mt-1.5 px-4 py-2.5 rounded-xl bg-bianca-bg-main border border-bianca-border text-bianca-text-primary text-sm placeholder:text-bianca-text-tertiary focus:outline-none focus:border-bianca-brand" />
+          </div>
+
+          <div class="grid grid-cols-[1fr_84px] gap-3">
+            <div>
+              <label class="text-xs font-semibold text-bianca-text-tertiary uppercase tracking-wide">Cidade</label>
+              <input id="rb-f-cidade" placeholder="Nome da cidade" class="rb-input w-full mt-1.5 px-4 py-2.5 rounded-xl bg-bianca-bg-main border border-bianca-border text-bianca-text-primary text-sm placeholder:text-bianca-text-tertiary focus:outline-none focus:border-bianca-brand" />
+            </div>
+            <div>
+              <label class="text-xs font-semibold text-bianca-text-tertiary uppercase tracking-wide">UF</label>
+              <input id="rb-f-uf" placeholder="UF" class="rb-input w-full mt-1.5 px-4 py-2.5 rounded-xl bg-bianca-bg-main border border-bianca-border text-bianca-text-primary text-sm placeholder:text-bianca-text-tertiary focus:outline-none focus:border-bianca-brand" />
+            </div>
+          </div>
+        </div>
+
+        <div id="rb-simples-fields" class="rb-hidden">
+          <label class="text-xs font-semibold text-bianca-text-tertiary uppercase tracking-wide">Descrição</label>
+          <textarea id="rb-f-descricao" rows="4" placeholder="Descreva a despesa..." class="rb-input w-full mt-1.5 px-4 py-2.5 rounded-xl bg-bianca-bg-main border border-bianca-border text-bianca-text-primary text-sm placeholder:text-bianca-text-tertiary focus:outline-none focus:border-bianca-brand resize-none"></textarea>
+        </div>
+
+        <div class="flex gap-3">
+          <button class="flex-1 px-5 py-2.5 rounded-xl border border-bianca-border text-bianca-text-primary text-sm font-medium hover:bg-bianca-bg-hover transition-colors" onclick="goToStep(1)">← Voltar</button>
+          <button class="rb-btn-primary flex-1 px-5 py-2.5 rounded-xl bg-bianca-brand text-bianca-bg-main text-sm font-semibold glow-brand" onclick="goToStep(3)">Continuar →</button>
+        </div>
+      </div>
+
+      <div id="rb-step-3" class="rb-hidden p-6 space-y-4">
+        <div id="rb-viagem-step3">
+          <label class="text-xs font-semibold text-bianca-text-tertiary uppercase tracking-wide mb-2 block">Reembolsos solicitados</label>
+          <div class="space-y-2.5">
+            <label class="rb-check-label flex items-center gap-2.5 text-sm cursor-pointer">
+              <input id="rb-f-cat-transporte" type="checkbox" class="rb-check-input" onchange="document.getElementById('rb-transporte-meio').classList.toggle('rb-hidden', !this.checked)" />
+              <span class="rb-check-box"><svg class="rb-check-icon" viewBox="0 0 12 10" fill="none"><path d="M1 5L4.5 8.5L11 1.5" stroke="white" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+              Transporte
+            </label>
+            <div id="rb-transporte-meio" class="rb-hidden pl-8 space-y-3">
+              <div id="rb-f-meio" class="rb-select" data-value="">
+                <button type="button" class="rb-select-trigger w-full flex items-center justify-between px-4 py-2.5 rounded-xl bg-bianca-bg-main border border-bianca-border text-sm text-left" onclick="rbToggleSelect(this)">
+                  <span class="rb-select-label text-bianca-text-tertiary">Meio de transporte</span>
+                  <svg class="rb-select-chevron w-4 h-4 text-bianca-text-secondary" viewBox="0 0 20 20" fill="none"><path d="M5 7.5L10 12.5L15 7.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                </button>
+                <div class="rb-select-panel hidden bg-bianca-bg-card border border-bianca-border rounded-xl shadow-xl shadow-black/50 overflow-hidden">
+                  <div class="rb-select-option px-4 py-2.5 text-sm hover:bg-bianca-bg-hover cursor-pointer" onclick="rbSelectOption(this)">Avião</div>
+                  <div class="rb-select-option px-4 py-2.5 text-sm hover:bg-bianca-bg-hover cursor-pointer" onclick="rbSelectOption(this)">Ônibus</div>
+                  <div class="rb-select-option px-4 py-2.5 text-sm hover:bg-bianca-bg-hover cursor-pointer" onclick="rbSelectOption(this)">Carro Próprio</div>
+                  <div class="rb-select-option px-4 py-2.5 text-sm hover:bg-bianca-bg-hover cursor-pointer" onclick="rbSelectOption(this)">Carro Alugado</div>
+                  <div class="rb-select-option px-4 py-2.5 text-sm hover:bg-bianca-bg-hover cursor-pointer" onclick="rbSelectOption(this)">Uber</div>
+                </div>
+              </div>
+              <div id="rb-f-km-wrap" class="rb-hidden">
+                <label class="text-xs font-semibold text-bianca-text-tertiary uppercase tracking-wide">Quilometragem</label>
+                <input id="rb-f-km" placeholder="Ex: 120" class="rb-input w-full mt-1.5 px-4 py-2.5 rounded-xl bg-bianca-bg-main border border-bianca-border text-bianca-text-primary text-sm placeholder:text-bianca-text-tertiary focus:outline-none focus:border-bianca-brand" />
+              </div>
+            </div>
+            <label class="rb-check-label flex items-center gap-2.5 text-sm cursor-pointer">
+              <input id="rb-f-cat-alimentacao" type="checkbox" class="rb-check-input" />
+              <span class="rb-check-box"><svg class="rb-check-icon" viewBox="0 0 12 10" fill="none"><path d="M1 5L4.5 8.5L11 1.5" stroke="white" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+              Alimentação
+            </label>
+            <label class="rb-check-label flex items-center gap-2.5 text-sm cursor-pointer">
+              <input id="rb-f-cat-estadia" type="checkbox" class="rb-check-input" />
+              <span class="rb-check-box"><svg class="rb-check-icon" viewBox="0 0 12 10" fill="none"><path d="M1 5L4.5 8.5L11 1.5" stroke="white" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+              Estadia
+            </label>
+          </div>
+        </div>
+
+        <div id="rb-simples-step3" class="rb-hidden">
+          <p class="text-sm text-bianca-text-secondary leading-relaxed">Revise a descrição na etapa anterior e envie sua solicitação. Depois de aprovada, você poderá anexar o comprovante fiscal.</p>
+        </div>
+
+        <div class="flex gap-3">
+          <button class="flex-1 px-5 py-2.5 rounded-xl border border-bianca-border text-bianca-text-primary text-sm font-medium hover:bg-bianca-bg-hover transition-colors" onclick="goToStep(2)">← Voltar</button>
+          <button id="rb-submit-btn" class="rb-btn-primary flex-1 px-5 py-2.5 rounded-xl bg-bianca-brand text-bianca-bg-main text-sm font-semibold glow-brand" onclick="submitNewReembolso()">Solicitar reembolso →</button>
+        </div>
+      </div>
+    </div>
+    </div>
+  </div>
+
+  <!-- DETAILS MODAL -->
+  <div id="rb-details-overlay" class="rb-overlay fixed inset-0 bg-black/70 items-center justify-center z-50 p-6">
+    <div class="bg-bianca-bg-card border border-bianca-border rounded-2xl overflow-hidden w-full max-w-md max-h-[90vh] flex flex-col shadow-2xl shadow-black/60">
+      <div class="flex items-center justify-between px-6 py-5 border-b border-bianca-border shrink-0">
+        <h3 class="text-lg font-bold">Detalhes da solicitação</h3>
+        <button class="text-bianca-text-secondary hover:text-bianca-text-primary transition-colors" onclick="closeOverlay('rb-details-overlay')">✕</button>
+      </div>
+      <div class="p-6 space-y-5 overflow-y-auto">
+        <div id="rb-d-status" class="flex items-center gap-2 flex-wrap"></div>
+        <div><p class="text-[10.5px] text-bianca-text-tertiary uppercase tracking-wide mb-1 font-bold">Solicitante</p><p id="rb-d-solicitante" class="text-sm font-medium"></p></div>
+        <div id="rb-d-viagem-info">
+          <div class="h-px bg-bianca-border"></div>
+          <div class="grid grid-cols-2 gap-4 pt-5">
+            <div><p class="text-[10.5px] text-bianca-text-tertiary uppercase tracking-wide mb-1 font-bold">Local</p><p id="rb-d-local" class="text-sm font-medium"></p></div>
+            <div><p class="text-[10.5px] text-bianca-text-tertiary uppercase tracking-wide mb-1 font-bold">Viajantes</p><p id="rb-d-viajantes" class="text-sm font-medium font-mono"></p></div>
+            <div><p class="text-[10.5px] text-bianca-text-tertiary uppercase tracking-wide mb-1 font-bold">Data de ida</p><p id="rb-d-ida" class="text-sm font-medium font-mono"></p></div>
+            <div><p class="text-[10.5px] text-bianca-text-tertiary uppercase tracking-wide mb-1 font-bold">Data de volta</p><p id="rb-d-volta" class="text-sm font-medium font-mono"></p></div>
+          </div>
+          <div class="h-px bg-bianca-border mt-5"></div>
+          <div class="grid grid-cols-2 gap-4 pt-5">
+            <div><p class="text-[10.5px] text-bianca-text-tertiary uppercase tracking-wide mb-1 font-bold">Objetivo</p><p id="rb-d-objetivo" class="text-sm font-medium"></p></div>
+            <div><p class="text-[10.5px] text-bianca-text-tertiary uppercase tracking-wide mb-1 font-bold">Nome do objetivo</p><p id="rb-d-nome-objetivo" class="text-sm font-medium"></p></div>
+          </div>
+        </div>
+        <div id="rb-d-descricao-wrap" class="rb-hidden">
+          <p class="text-[10.5px] text-bianca-text-tertiary uppercase tracking-wide mb-1 font-bold">Descrição</p>
+          <p id="rb-d-descricao" class="text-sm font-medium leading-relaxed"></p>
+        </div>
+        <div class="h-px bg-bianca-border"></div>
+        <div class="space-y-3">
+          <div>
+            <p class="text-[10.5px] text-bianca-text-tertiary uppercase tracking-wide mb-1.5 font-bold">Comprovantes</p>
+            <div id="rb-d-reembolsos" class="text-sm text-bianca-text-secondary space-y-1.5"></div>
+          </div>
+          <div id="rb-d-meio-wrap"><p class="text-[10.5px] text-bianca-text-tertiary uppercase tracking-wide mb-1 font-bold">Meio de transporte</p><p id="rb-d-meio" class="text-sm font-medium"></p></div>
+          <div id="rb-d-km-wrap" class="rb-hidden"><p class="text-[10.5px] text-bianca-text-tertiary uppercase tracking-wide mb-1 font-bold">Quilometragem</p><p id="rb-d-km" class="text-sm font-medium font-mono"></p></div>
+        </div>
+        <div class="pt-2 border-t border-bianca-border">
+          <p class="text-[10.5px] text-bianca-text-tertiary">A solicitação de reembolso é feita a cada 14 dias.</p>
+        </div>
+        <button id="rb-d-anexar-btn" class="rb-hidden rb-btn-primary w-full px-5 py-2.5 rounded-xl bg-bianca-yellow text-bianca-bg-main text-sm font-semibold glow-yellow" onclick="openAttachModal()">
+          Anexar comprovantes fiscais
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ATTACHMENT MODAL -->
+  <div id="rb-attach-overlay" class="rb-overlay fixed inset-0 bg-black/70 items-center justify-center z-50 p-6">
+    <div class="bg-bianca-bg-card border border-bianca-border rounded-2xl overflow-hidden w-full max-w-lg max-h-[90vh] flex flex-col shadow-2xl shadow-black/60">
+      <div class="flex items-center justify-between px-6 py-5 border-b border-bianca-border shrink-0">
+        <div>
+          <h3 class="text-lg font-bold">Anexar comprovantes fiscais</h3>
+          <p class="text-xs text-bianca-text-secondary mt-0.5">Pode anexar mais de uma nota por categoria</p>
+        </div>
+        <button class="text-bianca-text-secondary hover:text-bianca-text-primary transition-colors" onclick="closeOverlay('rb-attach-overlay')">✕</button>
+      </div>
+      <div id="rb-attach-body" class="p-6 space-y-6 overflow-y-auto"></div>
+      <div class="px-6 pb-6 shrink-0">
+        <button class="rb-btn-primary w-full px-5 py-2.5 rounded-xl bg-bianca-brand text-bianca-bg-main text-sm font-semibold glow-brand" onclick="submitAttachments()">
+          Enviar para análise financeira
+        </button>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  // Contexto do usuário logado, lido dos parâmetros da URL (o Bubble monta o
+  // <iframe src="...?uid=...&uname=...&cid=...&eid=..."> com dynamic data).
+  const RB_PARAMS = new URLSearchParams(window.location.search);
+  const RB_CTX = {
+    userId: RB_PARAMS.get('uid') || '',
+    userName: RB_PARAMS.get('uname') || '',
+    clienteId: RB_PARAMS.get('cid') || '',
+    empresaId: RB_PARAMS.get('eid') || '',
+  };
+  if (!RB_CTX.userId) {
+    document.getElementById('rb-ctx-error').classList.remove('rb-hidden');
+  }
+
+  ['rb-action-overlay', 'rb-request-overlay', 'rb-details-overlay', 'rb-attach-overlay'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) document.body.appendChild(el);
+  });
+
+  /* ============ status (Solicitação + Financeiro são dois campos independentes) ============ */
+  // Tag compacta em caixa alta, no estilo "status-tag" do console financeiro
+  // (em vez do chip arredondado do site original) — mesma lógica de cores.
+  const badge = (label, color) =>
+    `<span class="rb-chip inline-flex items-center px-2.5 py-1 rounded-md text-[10.5px] font-bold uppercase tracking-wide bg-${color}/10 text-${color} border border-${color}/20">${label}</span>`;
+
+  const STATUS_COLORS = {
+    'Enviado': 'bianca-blue',
+    'Aprovado': 'bianca-brand',
+    'Negado': 'bianca-red',
+    'Não Enviado': 'bianca-yellow',
+    'Não Aprovado': 'bianca-red',
+  };
+  function statusBadge(value) {
+    return badge(value || '—', STATUS_COLORS[value] || 'bianca-neutral');
+  }
+
+  function deriveGroup(statusSolicitacao, statusFinanceiro) {
+    if (statusSolicitacao === 'Enviado') return 'andamento';
+    if (statusSolicitacao === 'Negado') return 'concluidos';
+    if (statusFinanceiro === 'Não Enviado') return 'acao';
+    if (statusFinanceiro === 'Enviado') return 'andamento';
+    return 'concluidos'; // Aprovado ou Não Aprovado
+  }
+
+  function formatDateBR(iso) {
+    if (!iso) return '';
+    const d = new Date(iso);
+    return isNaN(d) ? '' : d.toLocaleDateString('pt-BR');
+  }
+  function formatBRL(n) {
+    return 'R$ ' + Number(n || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+
+  /* ============ leitura via Data API (mapeia nomes reais de campo do Reembolso) ============ */
+  function mapReembolsoApi(raw) {
+    const statusSolicitacao = raw['Status Solicitacao'];
+    const statusFinanceiro = raw['Status Financeiro'];
+    const group = deriveGroup(statusSolicitacao, statusFinanceiro);
+    const needsAction = statusSolicitacao === 'Aprovado' && statusFinanceiro === 'Não Enviado';
+    const valorNum = raw['Valor Total'] || 0;
+    return {
+      id: raw._id,
+      nome: RB_CTX.userName || '—',
+      tipo: raw['Tipo de Reembolso'] || '—',
+      criacaoRaw: raw['Data da solicitação'] || '',
+      criacao: formatDateBR(raw['Data da solicitação']) || '—',
+      valorNum,
+      valor: valorNum ? formatBRL(valorNum) : null,
+      group,
+      statusSolicitacao,
+      aprSolicitacao: formatDateBR(raw['Data da Aprovação Solicitação']) || '—',
+      statusFinanceiro,
+      aprFinanceiroRaw: raw['Data de Aprovação Financeiro'] || '',
+      aprFinanceiro: formatDateBR(raw['Data de Aprovação Financeiro']) || '—',
+      needsAction,
+      actionLabel: needsAction ? 'Anexar comprovante fiscal' : null,
+      solicitante: RB_CTX.userName || '—',
+      local: [raw['Cidade'], raw['UF']].filter(Boolean).join(' - ') || '—',
+      viajantes: raw['Número de pessoas'] || '—',
+      ida: formatDateBR(raw['Data Inicial']) || '—',
+      volta: formatDateBR(raw['Data Final']) || '—',
+      objetivo: raw['Objetivo'] || '—',
+      nomeObjetivo: raw['evento'] || '—',
+      clienteId: raw['cliente'] || null,
+      meio: raw['Meio de transporte'] || null,
+      km: raw['Solicitacao de quilometragem'] || null,
+      descricao: raw['Descrição Extra'] || raw['Descrição despesa'] || '',
+      precisaAnexo: needsAction,
+      // Comprovantes já salvos no Bubble (vindos da Data API) — separado de
+      // rbAttachments, que só guarda arquivos escolhidos na sessão atual antes
+      // de enviar. Ver reembolso.md pro bug que isso corrige.
+      anexosSalvos: {
+        'Transporte': raw['Anexo Transporte'] || [],
+        'Alimentação': raw['Anexo Alimentação'] || [],
+        'Estadia': raw['Anexo Estadia'] || [],
+        'Extra': raw['Anexo Extra'] || [],
+        'Despesa_direta': raw['Anexo Despesa_direta'] || [],
+      },
+    };
+  }
+
+  function escapeHtml(str) {
+    return String(str).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  }
+
+  function rbFileUrl(url) {
+    return url.startsWith('//') ? 'https:' + url : url;
+  }
+
+  function rbFileName(url) {
+    try { return decodeURIComponent(url.split('/').pop()); } catch (e) { return url.split('/').pop(); }
+  }
+
+  // Mesmo token usado pra criação — ver reembolso.md, seção Segurança, pros
+  // riscos de ele também listar dados (não só criar).
+  const RB_DATA_API_URL = 'https://nexiplay.com/version-93hzi/api/1.1/obj/Reembolso';
+  const RB_API_TOKEN = '4a6bbc25ef41cda5bca86036a83e5f75';
+
+  let rbRequests = [];
+
+  async function loadReembolsos() {
+    const tbody = document.getElementById('rb-tbody');
+    if (!RB_CTX.userId) {
+      tbody.innerHTML = '<tr><td colspan="9" class="px-5 py-8 text-center text-sm text-bianca-text-secondary">Não foi possível identificar o usuário (acesse pelo Nexiplay).</td></tr>';
+      return;
+    }
+    tbody.innerHTML = '<tr><td colspan="9" class="px-5 py-8 text-center text-sm text-bianca-text-secondary">Carregando...</td></tr>';
+    document.getElementById('rb-empty').classList.add('rb-hidden');
+
+    try {
+      const constraints = [{ key: 'user', constraint_type: 'equals', value: RB_CTX.userId }];
+      const url = `${RB_DATA_API_URL}?limit=100&constraints=${encodeURIComponent(JSON.stringify(constraints))}`;
+      const res = await fetch(url, { headers: { Authorization: 'Bearer ' + RB_API_TOKEN } });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      const raw = (data.response && data.response.results) || [];
+      rbRequests = raw
+        .map(mapReembolsoApi)
+        .sort((a, b) => new Date(b.criacaoRaw) - new Date(a.criacaoRaw));
+      updateStats();
+      setFilter(rbActiveFilter);
+    } catch (err) {
+      tbody.innerHTML = `<tr><td colspan="9" class="px-5 py-8 text-center text-sm text-bianca-text-secondary">Erro ao carregar reembolsos. <a href="#" onclick="loadReembolsos(); return false;" class="text-bianca-brand hover:underline">Tentar novamente</a></td></tr>`;
+      console.error('Erro ao carregar reembolsos', err);
+    }
+  }
+
+  // Definição de "total solicitado" e "pago no mês" é uma interpretação razoável
+  // (soma de Valor Total geral / soma de Valor Total com Status Financeiro =
+  // Aprovado e Data de Aprovação Financeiro no mês corrente) — não foi conferida
+  // contra a lógica exata que existia antes via dynamic data do Bubble.
+  function updateStats() {
+    document.getElementById('rb-stat-count').textContent = rbRequests.length;
+
+    const totalSolicitado = rbRequests.reduce((sum, r) => sum + r.valorNum, 0);
+    document.getElementById('rb-stat-total').textContent = formatBRL(totalSolicitado);
+
+    const now = new Date();
+    const pagosNoMes = rbRequests.filter(r => {
+      if (r.statusFinanceiro !== 'Aprovado' || !r.aprFinanceiroRaw) return false;
+      const d = new Date(r.aprFinanceiroRaw);
+      return !isNaN(d) && d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+    });
+    const totalPagoMes = pagosNoMes.reduce((sum, r) => sum + r.valorNum, 0);
+    document.getElementById('rb-stat-paid').textContent = formatBRL(totalPagoMes);
+    const mesNome = now.toLocaleDateString('pt-BR', { month: 'long' });
+    document.getElementById('rb-stat-paid-sub').textContent =
+      `${pagosNoMes.length} pagamento${pagosNoMes.length === 1 ? '' : 's'} processado${pagosNoMes.length === 1 ? '' : 's'} em ${mesNome}`;
+
+    document.getElementById('rb-action-count').textContent = rbRequests.filter(r => r.needsAction).length;
+  }
+
+  /* ============ filters (segmented control / pill-group) ============ */
+  let rbActiveFilter = 'todos';
+
+  function setFilter(name) {
+    rbCurrentPage = 1;
+    rbActiveFilter = name;
+    document.querySelectorAll('.rb-filter-btn').forEach(btn => {
+      btn.classList.toggle('on', btn.dataset.filter === name);
+    });
+    document.getElementById('rb-filter-label').textContent = name === 'todos' ? '' : filterLabels[name];
+    renderTable();
+  }
+  const filterLabels = { todos: 'Mostrando todos', acao: 'Filtrando: precisa de ação', andamento: 'Filtrando: em andamento', concluidos: 'Filtrando: concluídos' };
+
+  /* ============ table (com paginação) ============ */
+  const RB_PAGE_SIZE = 5;
+  let rbCurrentPage = 1;
+
+  function renderTable() {
+    const search = document.getElementById('rb-search').value.toLowerCase();
+    const filtered = rbRequests.filter(r =>
+      (rbActiveFilter === 'todos' || r.group === rbActiveFilter) &&
+      (r.nome.toLowerCase().includes(search) || r.tipo.toLowerCase().includes(search))
+    );
+
+    document.getElementById('rb-empty').classList.toggle('rb-hidden', filtered.length > 0);
+
+    const totalPages = Math.max(1, Math.ceil(filtered.length / RB_PAGE_SIZE));
+    if (rbCurrentPage > totalPages) rbCurrentPage = totalPages;
+    const start = (rbCurrentPage - 1) * RB_PAGE_SIZE;
+    const pageItems = filtered.slice(start, start + RB_PAGE_SIZE);
+
+    const tbody = document.getElementById('rb-tbody');
+    tbody.innerHTML = pageItems.map(r => {
+      const i = rbRequests.indexOf(r);
+      const rowExtra = r.needsAction ? 'bg-bianca-yellow/[0.03] border-l-2 border-l-bianca-yellow' : '';
+      return `
+      <tr class="rb-row cursor-pointer hover:bg-bianca-bg-hover ${rowExtra}" onclick="openDetails(${i})">
+        <td class="px-5 py-4"><div class="flex items-center gap-2.5">
+          <div class="w-7 h-7 rounded-full bg-bianca-bg-hover border border-bianca-border flex items-center justify-center text-[11px] font-bold text-bianca-text-secondary font-mono">${r.nome.split(' ').map(w=>w[0]).slice(0,2).join('')}</div>
+          <span class="text-sm font-medium">${r.nome}</span></div></td>
+        <td class="px-5 py-4 text-sm text-bianca-text-secondary">${r.tipo}</td>
+        <td class="px-5 py-4 text-sm text-bianca-text-secondary font-mono">${r.criacao}</td>
+        <td class="px-5 py-4">${statusBadge(r.statusSolicitacao)}</td>
+        <td class="px-5 py-4 text-sm text-bianca-text-secondary font-mono">${r.aprSolicitacao}</td>
+        <td class="px-5 py-4">${statusBadge(r.statusFinanceiro)}</td>
+        <td class="px-5 py-4 text-sm text-bianca-text-secondary font-mono">${r.aprFinanceiro}</td>
+        <td class="px-5 py-4 text-sm text-right font-mono ${r.valor ? 'font-semibold' : 'text-bianca-text-secondary'}">${r.valor || '—'}</td>
+        <td class="px-5 py-4 text-right"><span class="text-bianca-brand text-sm font-medium hover:underline">Detalhes</span></td>
+      </tr>`;
+    }).join('');
+
+    document.getElementById('rb-pagination').classList.toggle('rb-hidden', filtered.length === 0);
+    document.getElementById('rb-page-label').textContent = `Página ${rbCurrentPage} de ${totalPages}`;
+    document.getElementById('rb-page-prev').disabled = rbCurrentPage <= 1;
+    document.getElementById('rb-page-next').disabled = rbCurrentPage >= totalPages;
+  }
+
+  function rbChangePage(delta) {
+    rbCurrentPage += delta;
+    renderTable();
+  }
+
+  function rbOnSearchInput() {
+    rbCurrentPage = 1;
+    renderTable();
+  }
+
+  /* ============ action popup ============ */
+  function openActionPopup() {
+    const pending = rbRequests.map((r, i) => ({ r, i })).filter(x => x.r.needsAction);
+    document.getElementById('rb-action-list').innerHTML = pending.map(({ r, i }) => `
+      <div class="rb-row flex items-center justify-between px-4 py-3 rounded-xl border border-bianca-border cursor-pointer hover:bg-bianca-bg-hover" onclick="closeOverlay('rb-action-overlay'); openDetails(${i})">
+        <div>
+          <p class="text-sm font-medium">${r.nome} — ${r.tipo}</p>
+          <p class="text-xs text-bianca-text-secondary font-mono">${r.criacao} · ${r.actionLabel}</p>
+        </div>
+        <span class="text-bianca-text-secondary">›</span>
+      </div>
+    `).join('') || '<p class="text-sm text-bianca-text-secondary text-center py-6">Nada pendente por aqui 🎉</p>';
+    rbOpenOverlay('rb-action-overlay');
+  }
+
+  /* ============ details modal ============ */
+  const rbAttachments = {};
+
+  function openDetails(i) {
+    const r = rbRequests[i];
+    document.getElementById('rb-d-status').innerHTML = statusBadge(r.statusSolicitacao) + statusBadge(r.statusFinanceiro);
+    document.getElementById('rb-d-solicitante').textContent = r.solicitante;
+
+    // Viagem tem local/viajantes/datas/objetivo; Extras e Despesa direta têm
+    // só uma descrição livre — mostra o bloco certo (ver reembolso.md).
+    const isViagem = r.tipo === 'Viagem';
+    document.getElementById('rb-d-viagem-info').classList.toggle('rb-hidden', !isViagem);
+    document.getElementById('rb-d-descricao-wrap').classList.toggle('rb-hidden', isViagem);
+    if (isViagem) {
+      document.getElementById('rb-d-local').textContent = r.local;
+      document.getElementById('rb-d-viajantes').textContent = r.viajantes;
+      document.getElementById('rb-d-ida').textContent = r.ida;
+      document.getElementById('rb-d-volta').textContent = r.volta;
+      document.getElementById('rb-d-objetivo').textContent = r.objetivo;
+      if (r.objetivo === 'Cliente' && r.clienteId) {
+        document.getElementById('rb-d-nome-objetivo').textContent = 'Carregando...';
+        rbGetClienteName(r.clienteId).then(nome => {
+          document.getElementById('rb-d-nome-objetivo').textContent = nome || '—';
+        });
+      } else {
+        document.getElementById('rb-d-nome-objetivo').textContent = r.nomeObjetivo;
+      }
+    } else {
+      document.getElementById('rb-d-descricao').textContent = r.descricao || 'Sem descrição.';
+    }
+
+    // Comprovantes já salvos no Bubble (não confundir com rbAttachments, que só
+    // guarda arquivos escolhidos nesta sessão antes de clicar em enviar).
+    const anexosSalvos = Object.entries(r.anexosSalvos || {}).flatMap(([cat, urls]) => urls.map(url => ({ cat, url })));
+    const reembolsosEl = document.getElementById('rb-d-reembolsos');
+    reembolsosEl.innerHTML = anexosSalvos.length
+      ? anexosSalvos.map(({ cat, url }) => `
+          <a href="${escapeHtml(rbFileUrl(url))}" target="_blank" rel="noopener" class="flex items-center gap-2 text-bianca-brand hover:underline">
+            <span>📎</span><span class="truncate">${escapeHtml(rbFileName(url))}</span>
+            <span class="text-bianca-text-secondary text-xs shrink-0">(${escapeHtml(cat.replace('_', ' '))})</span>
+          </a>
+        `).join('')
+      : '<p class="text-sm text-bianca-text-secondary">nenhum comprovante ainda</p>';
+
+    const meioWrap = document.getElementById('rb-d-meio-wrap');
+    if (r.meio) { meioWrap.classList.remove('rb-hidden'); document.getElementById('rb-d-meio').textContent = r.meio; }
+    else meioWrap.classList.add('rb-hidden');
+
+    const kmWrap = document.getElementById('rb-d-km-wrap');
+    if (r.km) { kmWrap.classList.remove('rb-hidden'); document.getElementById('rb-d-km').textContent = r.km + ' km'; }
+    else kmWrap.classList.add('rb-hidden');
+
+    document.getElementById('rb-d-anexar-btn').classList.toggle('rb-hidden', !r.precisaAnexo);
+    document.getElementById('rb-d-anexar-btn').dataset.reqIndex = i;
+    rbOpenOverlay('rb-details-overlay');
+  }
+
+  /* ============ attachment modal ============ */
+  function formatSize(bytes) {
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(0) + ' KB';
+    return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+  }
+
+  // Mesmo workflow do index.html — ver reembolso.md, seção "A saga do upload",
+  // pro histórico de por que o parâmetro de arquivo não pode ser lista.
+  const RB_ANEXO_URL = 'https://nexiplay.com/version-93hzi/api/1.1/wf/teste-anexo-simples';
+  const TIPO_CATEGORIAS = {
+    'Viagem': ['Transporte', 'Alimentação', 'Estadia'],
+    'Extras': ['Extra'],
+    'Despesa direta': ['Despesa_direta'],
+  };
+
+  let rbCurrentAttachIndex = null;
+
+  function openAttachModal() {
+    const i = parseInt(document.getElementById('rb-d-anexar-btn').dataset.reqIndex, 10);
+    rbCurrentAttachIndex = i;
+    const r = rbRequests[i];
+    if (!rbAttachments[i]) rbAttachments[i] = {};
+    const categorias = TIPO_CATEGORIAS[r.tipo] || [];
+
+    document.getElementById('rb-attach-body').innerHTML = categorias.map(cat => `
+      <div>
+        <div class="flex items-center justify-between mb-2">
+          <p class="text-sm font-semibold">${cat}</p>
+          <p class="text-[11px] text-bianca-text-tertiary">pode enviar mais de um arquivo</p>
+        </div>
+        <div id="rb-dz-${cat}" class="rb-dropzone border border-dashed border-bianca-border rounded-xl p-5 text-center cursor-pointer"
+             onclick="document.getElementById('rb-file-${cat}').click()"
+             ondragover="event.preventDefault(); this.classList.add('rb-dragover')"
+             ondragleave="this.classList.remove('rb-dragover')"
+             ondrop="rbHandleDrop(event, ${i}, '${cat}')">
+          <p class="text-sm text-bianca-text-secondary">Arraste os arquivos aqui ou <span class="text-bianca-brand font-medium">clique para selecionar</span></p>
+          <p class="text-[11px] text-bianca-text-tertiary mt-1">PDF, JPG ou PNG</p>
+          <input id="rb-file-${cat}" type="file" multiple accept=".pdf,.jpg,.jpeg,.png" class="hidden" onchange="rbHandleFiles(this.files, ${i}, '${cat}')" />
+        </div>
+        <div id="rb-filelist-${cat}" class="space-y-1.5 mt-2"></div>
+      </div>
+    `).join('');
+
+    categorias.forEach(cat => rbRenderFileList(i, cat));
+    closeOverlay('rb-details-overlay');
+    rbOpenOverlay('rb-attach-overlay');
+  }
+
+  function rbHandleFiles(fileList, i, cat) {
+    if (!rbAttachments[i][cat]) rbAttachments[i][cat] = [];
+    Array.from(fileList).forEach(f => rbAttachments[i][cat].push(f));
+    rbRenderFileList(i, cat);
+  }
+  function rbHandleDrop(event, i, cat) {
+    event.preventDefault();
+    document.getElementById('rb-dz-' + cat).classList.remove('rb-dragover');
+    rbHandleFiles(event.dataTransfer.files, i, cat);
+  }
+  function rbRemoveFile(i, cat, idx) {
+    rbAttachments[i][cat].splice(idx, 1);
+    rbRenderFileList(i, cat);
+  }
+  function rbRenderFileList(i, cat) {
+    const files = (rbAttachments[i] && rbAttachments[i][cat]) || [];
+    const el = document.getElementById('rb-filelist-' + cat);
+    if (!el) return;
+    el.innerHTML = files.map((f, idx) => `
+      <div class="rb-chip flex items-center justify-between px-3 py-2 rounded-xl bg-bianca-bg-main border border-bianca-border">
+        <div class="flex items-center gap-2 min-w-0">
+          <span class="text-bianca-brand text-sm">📎</span>
+          <span class="text-sm truncate">${f.name}</span>
+          <span class="text-[11px] text-bianca-text-tertiary shrink-0 font-mono">${formatSize(f.size)}</span>
+        </div>
+        <button class="text-bianca-text-secondary hover:text-bianca-red transition-colors text-sm px-1" onclick="rbRemoveFile(${i}, '${cat}', ${idx})">✕</button>
+      </div>`).join('');
+  }
+
+  function fileToBase64(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result).split(',')[1] || '');
+      reader.onerror = () => reject(new Error('Falha ao ler o arquivo'));
+      reader.readAsDataURL(file);
+    });
+  }
+
+  async function submitAttachments() {
+    const i = rbCurrentAttachIndex;
+    const r = rbRequests[i];
+    const byCategoria = rbAttachments[i] || {};
+    const pending = Object.entries(byCategoria).flatMap(([cat, files]) => files.map(file => ({ cat, file })));
+
+    if (!pending.length) { closeOverlay('rb-attach-overlay'); return; }
+
+    const btn = document.querySelector('#rb-attach-overlay .rb-btn-primary');
+    const originalLabel = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = 'Enviando...';
+
+    try {
+      for (const { cat, file } of pending) {
+        const contents = await fileToBase64(file);
+        const res = await fetch(RB_ANEXO_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            reembolso_id: r.id,
+            categoria: cat,
+            nome: file.name,
+            tamanho: formatSize(file.size),
+            anexo: { filename: file.name, contents, private: false },
+          }),
+        });
+        if (!res.ok) {
+          const body = await res.text();
+          throw new Error(`HTTP ${res.status}: ${body}`);
+        }
+      }
+
+      closeOverlay('rb-attach-overlay');
+      await loadReembolsos();
+    } catch (err) {
+      rbToast('Erro ao enviar comprovante. Tente novamente.' + (err.message ? ' (' + err.message + ')' : ''), 'error');
+    } finally {
+      btn.disabled = false;
+      btn.textContent = originalLabel;
+    }
+  }
+
+  /* ============ request modal wizard ============ */
+  function openRequestModal() {
+    goToStep(1);
+    rbUpdateTipoFields();
+    rbOpenOverlay('rb-request-overlay');
+  }
+  function goToStep(n) {
+    document.getElementById('rb-step-1').classList.toggle('rb-hidden', n !== 1);
+    document.getElementById('rb-step-2').classList.toggle('rb-hidden', n !== 2);
+    document.getElementById('rb-step-3').classList.toggle('rb-hidden', n !== 3);
+    document.getElementById('rb-step-fill-1').style.width = '100%';
+    document.getElementById('rb-step-fill-2').style.width = n >= 2 ? '100%' : '0%';
+    document.getElementById('rb-step-fill-3').style.width = n >= 3 ? '100%' : '0%';
+    [1, 2, 3].forEach(s => {
+      document.getElementById('rb-step-label-' + s).className = 'text-xs font-semibold ' + (s <= n ? 'text-bianca-text-primary' : 'text-bianca-text-tertiary');
+    });
+  }
+
+  /* ============ custom select ============ */
+  function rbToggleSelect(btn) {
+    const wrapper = btn.closest('.rb-select');
+    const panel = wrapper.querySelector('.rb-select-panel');
+    document.querySelectorAll('.rb-select').forEach(w => { if (w !== wrapper) { w.classList.remove('open'); w.querySelector('.rb-select-panel').classList.add('hidden'); } });
+    const opening = panel.classList.contains('hidden');
+    panel.classList.toggle('hidden');
+    wrapper.classList.toggle('open', !panel.classList.contains('hidden'));
+    if (opening) rbPositionSelectPanel(btn, panel);
+  }
+
+  // Painel é position:fixed (não absolute), então calculamos onde ele aparece
+  // aqui — relativo à viewport, não ao modal. Isso evita que o modal por trás
+  // precise rolar pra revelar o painel inteiro; abre pra cima se não tiver
+  // espaço suficiente embaixo.
+  function rbPositionSelectPanel(btn, panel) {
+    const rect = btn.getBoundingClientRect();
+    const spaceBelow = window.innerHeight - rect.bottom;
+    const openUp = spaceBelow < 160 && rect.top > spaceBelow;
+    panel.style.left = rect.left + 'px';
+    panel.style.width = rect.width + 'px';
+    if (openUp) {
+      panel.style.bottom = (window.innerHeight - rect.top + 6) + 'px';
+      panel.style.top = 'auto';
+    } else {
+      panel.style.top = (rect.bottom + 6) + 'px';
+      panel.style.bottom = 'auto';
+    }
+  }
+  function rbSelectOption(el) {
+    const wrapper = el.closest('.rb-select');
+    const value = el.textContent;
+    wrapper.dataset.value = value;
+    const label = wrapper.querySelector('.rb-select-label');
+    label.textContent = value;
+    label.classList.remove('text-bianca-text-tertiary');
+    label.classList.add('text-bianca-text-primary');
+    wrapper.querySelector('.rb-select-panel').classList.add('hidden');
+    wrapper.classList.remove('open');
+
+    if (wrapper.id === 'rb-f-tipo') rbUpdateTipoFields();
+    if (wrapper.id === 'rb-f-objetivo') {
+      document.getElementById('rb-f-nome-objetivo-wrap').classList.toggle('rb-hidden', value !== 'Evento');
+      const showCliente = value === 'Cliente';
+      document.getElementById('rb-f-cliente-wrap').classList.toggle('rb-hidden', !showCliente);
+      if (showCliente) rbLoadClienteOptions();
+    }
+    if (wrapper.id === 'rb-f-meio') {
+      document.getElementById('rb-f-km-wrap').classList.toggle('rb-hidden', value !== 'Carro Próprio' && value !== 'Carro Alugado');
+    }
+  }
+
+  // Dropdown de clientes do próprio usuário, pra quando Objetivo = Cliente.
+  // Busca só os clientes com Responsavel = usuário logado (nunca a tabela toda)
+  // — ver reembolso.md, seção Segurança, pro risco aceito de expor isso via
+  // fetch direto do navegador.
+  const RB_CLIENTE_API_URL = 'https://nexiplay.com/version-93hzi/api/1.1/obj/Cliente';
+  let rbClienteOptions = null;
+
+  async function rbLoadClienteOptions() {
+    if (rbClienteOptions) return;
+    const listEl = document.getElementById('rb-cliente-options-list');
+    listEl.innerHTML = '<div class="px-4 py-2.5 text-sm text-bianca-text-secondary">Carregando...</div>';
+    const collected = [];
+    try {
+      let cursor = 0;
+      for (let page = 0; page < 10; page++) {
+        const constraints = [{ key: 'Responsavel', constraint_type: 'equals', value: RB_CTX.userId }];
+        const url = `${RB_CLIENTE_API_URL}?limit=100&cursor=${cursor}&constraints=${encodeURIComponent(JSON.stringify(constraints))}`;
+        const res = await fetch(url, { headers: { Authorization: 'Bearer ' + RB_API_TOKEN } });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        const results = (data.response && data.response.results) || [];
+        results.forEach(c => collected.push({ id: c._id, nome: c['Nome'] || '(sem nome)' }));
+        const remaining = (data.response && data.response.remaining) || 0;
+        cursor += results.length;
+        if (remaining <= 0 || results.length === 0) break;
+      }
+      collected.sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
+      rbClienteOptions = collected;
+      rbRenderClienteOptions(rbClienteOptions);
+    } catch (err) {
+      listEl.innerHTML = '<div class="px-4 py-2.5 text-sm text-bianca-red">Erro ao carregar clientes. Tente reabrir o campo.</div>';
+      console.error('Erro ao carregar clientes', err);
+    }
+  }
+
+  function rbRenderClienteOptions(list) {
+    const listEl = document.getElementById('rb-cliente-options-list');
+    listEl.innerHTML = list.length
+      ? list.map(c => `<div class="rb-select-option px-4 py-2.5 text-sm hover:bg-bianca-bg-hover cursor-pointer" data-cliente-id="${escapeHtml(c.id)}" onclick="rbSelectClienteOption(this)">${escapeHtml(c.nome)}</div>`).join('')
+      : '<div class="px-4 py-2.5 text-sm text-bianca-text-secondary">Nenhum cliente encontrado.</div>';
+  }
+
+  function rbFilterClienteOptions(query) {
+    if (!rbClienteOptions) return;
+    const q = query.trim().toLowerCase();
+    rbRenderClienteOptions(q ? rbClienteOptions.filter(c => c.nome.toLowerCase().includes(q)) : rbClienteOptions);
+  }
+
+  function rbSelectClienteOption(el) {
+    const wrapper = document.getElementById('rb-f-cliente');
+    wrapper.dataset.value = el.dataset.clienteId;
+    const label = wrapper.querySelector('.rb-select-label');
+    label.textContent = el.textContent;
+    label.classList.remove('text-bianca-text-tertiary');
+    label.classList.add('text-bianca-text-primary');
+    wrapper.querySelector('.rb-select-panel').classList.add('hidden');
+    wrapper.classList.remove('open');
+  }
+
+  // Resolve o nome de um Cliente pelo id, pro modal de Detalhes (quando
+  // Objetivo = Cliente). Um fetch individual por registro, com cache — evita
+  // rebuscar o mesmo cliente repetidas vezes ao abrir detalhes de vários
+  // reembolsos que apontam pro mesmo Cliente.
+  const rbClienteNameCache = {};
+  async function rbGetClienteName(clienteId) {
+    if (!clienteId) return null;
+    if (rbClienteNameCache[clienteId]) return rbClienteNameCache[clienteId];
+    try {
+      const res = await fetch(`${RB_CLIENTE_API_URL}/${clienteId}`, { headers: { Authorization: 'Bearer ' + RB_API_TOKEN } });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      const nome = (data.response && data.response['Nome']) || null;
+      rbClienteNameCache[clienteId] = nome;
+      return nome;
+    } catch (err) {
+      console.error('Erro ao buscar nome do cliente', err);
+      return null;
+    }
+  }
+  document.addEventListener('click', (e) => {
+    document.querySelectorAll('.rb-select').forEach(w => {
+      if (!w.contains(e.target)) { w.classList.remove('open'); w.querySelector('.rb-select-panel').classList.add('hidden'); }
+    });
+  });
+
+  /* ============ overlays ============ */
+  // Um iframe nunca consegue cobrir visualmente elementos FORA dele (a barra
+  // lateral do Bubble, por exemplo) — é uma barreira do próprio navegador,
+  // não uma configuração de CSS. A solução é avisar o Bubble (via postMessage)
+  // sempre que um modal abrir/fechar, pra ele mesmo alternar o iframe entre
+  // "encaixado ao lado da barra" (normal) e "tela cheia por cima de tudo"
+  // (com um modal aberto). O contador evita mandar "fechou" só porque um
+  // modal fechou pra abrir outro na sequência (ex.: Detalhes → Anexar).
+  let rbOpenOverlayCount = 0;
+
+  function rbOpenOverlay(id) {
+    document.getElementById(id).classList.add('open');
+    rbOpenOverlayCount++;
+    try { window.parent.postMessage({ type: 'rb-modal-open' }, '*'); } catch (e) {}
+  }
+
+  function closeOverlay(id) {
+    document.getElementById(id).classList.remove('open');
+    rbOpenOverlayCount = Math.max(0, rbOpenOverlayCount - 1);
+    if (rbOpenOverlayCount === 0) {
+      try { window.parent.postMessage({ type: 'rb-modal-close' }, '*'); } catch (e) {}
+      rbNotifyParentHeight();
+    }
+  }
+
+  /* ============ notificações (toast) ============ */
+  const RB_TOAST_STYLES = {
+    success: { border: 'border-bianca-brand/40', text: 'text-bianca-brand', icon: '✓' },
+    error:   { border: 'border-bianca-red/40',   text: 'text-bianca-red',   icon: '✕' },
+    warning: { border: 'border-bianca-yellow/40', text: 'text-bianca-yellow', icon: '!' },
+  };
+
+  function rbToast(message, type, duration) {
+    const container = document.getElementById('rb-toast-container');
+    if (!container) return;
+    const s = RB_TOAST_STYLES[type] || RB_TOAST_STYLES.warning;
+
+    const toast = document.createElement('div');
+    toast.className = 'rb-toast bg-bianca-bg-card border ' + s.border + ' rounded-xl px-4 py-3 shadow-2xl shadow-black/50 flex items-start gap-3 w-80 max-w-[calc(100vw-2rem)] text-sm';
+    toast.innerHTML = `
+      <span class="shrink-0 mt-0.5 font-bold ${s.text}">${s.icon}</span>
+      <span class="flex-1 leading-snug text-bianca-text-primary">${message}</span>
+      <button class="shrink-0 text-bianca-text-secondary hover:text-bianca-text-primary transition-colors" aria-label="Fechar">✕</button>
+    `;
+
+    const remove = () => {
+      toast.classList.add('rb-toast-out');
+      setTimeout(() => toast.remove(), 200);
+    };
+    toast.querySelector('button').addEventListener('click', remove);
+    container.appendChild(toast);
+    setTimeout(remove, duration || 5000);
+  }
+
+  /* ============ criação de reembolso (Data API direta) ============ */
+  function rbSelectValue(wrapperId) {
+    const el = document.getElementById(wrapperId);
+    return el ? (el.dataset.value || '') : '';
+  }
+
+  function rbResetSelect(wrapperId, placeholder) {
+    const wrapper = document.getElementById(wrapperId);
+    if (!wrapper) return;
+    wrapper.dataset.value = '';
+    const label = wrapper.querySelector('.rb-select-label');
+    label.textContent = placeholder;
+    label.classList.add('text-bianca-text-tertiary');
+    label.classList.remove('text-bianca-text-primary');
+  }
+
+  // Cada Tipo de Reembolso usa um conjunto bem diferente de campos (dados reais
+  // conferidos direto na tabela em 2026-08-18): Viagem usa viajantes/datas/
+  // objetivo/cidade/UF/categorias; Extras e Despesa direta usam só uma
+  // descrição livre. Essa função mostra/esconde os grupos de campo certos.
+  function rbUpdateTipoFields() {
+    const tipo = rbSelectValue('rb-f-tipo');
+    const isViagem = tipo === 'Viagem';
+    document.getElementById('rb-viagem-fields').classList.toggle('rb-hidden', !isViagem);
+    document.getElementById('rb-simples-fields').classList.toggle('rb-hidden', isViagem);
+    document.getElementById('rb-viagem-step3').classList.toggle('rb-hidden', !isViagem);
+    document.getElementById('rb-simples-step3').classList.toggle('rb-hidden', isViagem);
+  }
+
+  function rbResetRequestForm() {
+    document.getElementById('rb-f-viajantes').value = '';
+    document.getElementById('rb-f-ida').value = '';
+    document.getElementById('rb-f-volta').value = '';
+    document.getElementById('rb-f-nome-objetivo').value = '';
+    document.getElementById('rb-f-nome-objetivo-wrap').classList.add('rb-hidden');
+    document.getElementById('rb-f-cliente-wrap').classList.add('rb-hidden');
+    rbResetSelect('rb-f-cliente', 'Selecione o cliente');
+    document.getElementById('rb-f-cidade').value = '';
+    document.getElementById('rb-f-uf').value = '';
+    document.getElementById('rb-f-descricao').value = '';
+    document.getElementById('rb-f-cat-transporte').checked = false;
+    document.getElementById('rb-f-cat-alimentacao').checked = false;
+    document.getElementById('rb-f-cat-estadia').checked = false;
+    document.getElementById('rb-transporte-meio').classList.add('rb-hidden');
+    document.getElementById('rb-f-km').value = '';
+    document.getElementById('rb-f-km-wrap').classList.add('rb-hidden');
+
+    const tipoWrapper = document.getElementById('rb-f-tipo');
+    tipoWrapper.dataset.value = 'Viagem';
+    tipoWrapper.querySelector('.rb-select-label').textContent = 'Viagem';
+    rbResetSelect('rb-f-objetivo', 'Selecione');
+    rbResetSelect('rb-f-meio', 'Meio de transporte');
+    rbUpdateTipoFields();
+  }
+
+  async function submitNewReembolso() {
+    const tipo = rbSelectValue('rb-f-tipo');
+    const isViagem = tipo === 'Viagem';
+    const errors = [];
+    if (!tipo) errors.push('Selecione o tipo de reembolso.');
+    if (!RB_CTX.userId) errors.push('Não foi possível identificar seu usuário. Acesse essa página pelo Nexiplay.');
+
+    // Payload comum a todos os tipos.
+    const payload = {
+      'Tipo de Reembolso': tipo,
+      'Status Solicitacao': 'Enviado',
+      'Status Financeiro': 'Não Enviado',
+      'user': RB_CTX.userId,
+      'cliente': RB_CTX.clienteId || null,
+      'empresa': RB_CTX.empresaId || null,
+    };
+
+    if (isViagem) {
+      const viajantesRaw = document.getElementById('rb-f-viajantes').value.trim();
+      const viajantes = parseInt(viajantesRaw, 10);
+      const ida = document.getElementById('rb-f-ida').value;
+      const volta = document.getElementById('rb-f-volta').value;
+      const objetivo = rbSelectValue('rb-f-objetivo');
+      const nomeObjetivo = document.getElementById('rb-f-nome-objetivo').value.trim();
+      const clienteEscolhido = objetivo === 'Cliente' ? rbSelectValue('rb-f-cliente') : '';
+      const cidade = document.getElementById('rb-f-cidade').value.trim();
+      const uf = document.getElementById('rb-f-uf').value.trim();
+
+      const catTransporte = document.getElementById('rb-f-cat-transporte').checked;
+      const catAlimentacao = document.getElementById('rb-f-cat-alimentacao').checked;
+      const catEstadia = document.getElementById('rb-f-cat-estadia').checked;
+      const meio = catTransporte ? rbSelectValue('rb-f-meio') : '';
+      const usaVeiculoProprio = meio === 'Carro Próprio' || meio === 'Carro Alugado';
+      const kmRaw = usaVeiculoProprio ? document.getElementById('rb-f-km').value.trim() : '';
+
+      // "Estadia" é o rótulo mostrado ao usuário, mas o histórico de dados sempre
+      // gravou "Hospedagem" nesse campo — mantém os dois formulários compatíveis.
+      const categorias = [];
+      if (catTransporte) categorias.push('Transporte');
+      if (catAlimentacao) categorias.push('Alimentação');
+      if (catEstadia) categorias.push('Hospedagem');
+
+      if (!viajantesRaw || isNaN(viajantes) || viajantes < 1) errors.push('Informe quantas pessoas irão viajar.');
+      if (!ida) errors.push('Informe a data de ida.');
+      if (!volta) errors.push('Informe a data de volta.');
+      if (ida && volta && volta < ida) errors.push('A data de volta não pode ser anterior à data de ida.');
+      if (!objetivo) errors.push('Selecione o objetivo.');
+      if (objetivo === 'Evento' && !nomeObjetivo) errors.push('Informe o nome do evento.');
+      if (objetivo === 'Cliente' && !clienteEscolhido) errors.push('Selecione o cliente.');
+      if (!cidade) errors.push('Informe a cidade.');
+      if (!uf) errors.push('Informe a UF.');
+      if (!categorias.length) errors.push('Selecione ao menos um reembolso solicitado (Transporte, Alimentação ou Estadia).');
+      if (catTransporte && !meio) errors.push('Selecione o meio de transporte.');
+      if (usaVeiculoProprio && !kmRaw) errors.push('Informe a quilometragem.');
+
+      Object.assign(payload, {
+        'Cidade': cidade,
+        'UF': uf,
+        'Objetivo': objetivo,
+        'evento': nomeObjetivo || null,
+        'Data Inicial': ida,
+        'Data Final': volta,
+        'Número de pessoas': viajantes,
+        'Reembolso Solicitado': categorias,
+        'Meio de transporte': meio || null,
+        'Solicitacao de quilometragem': kmRaw || null,
+      });
+      // "cliente" é sempre o cliente vinculado ao usuário logado, exceto quando
+      // o Objetivo é "Cliente" — nesse caso, a pessoa escolhe qual dos clientes
+      // dela é o objetivo desta viagem (dropdown, ver reembolso.md).
+      if (objetivo === 'Cliente' && clienteEscolhido) {
+        payload['cliente'] = clienteEscolhido;
+      }
+    } else {
+      // Extras e Despesa direta usam só uma descrição livre — dados reais
+      // confirmados em 2026-08-18 (ver reembolso.md).
+      const descricao = document.getElementById('rb-f-descricao').value.trim();
+      if (!descricao) errors.push('Descreva a despesa.');
+      if (tipo === 'Extras') payload['Descrição Extra'] = descricao;
+      else if (tipo === 'Despesa direta') payload['Descrição despesa'] = descricao;
+    }
+
+    if (errors.length) {
+      rbToast(errors.join('<br>'), 'warning', 7000);
+      return;
+    }
+
+    const btn = document.getElementById('rb-submit-btn');
+    const originalLabel = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = 'Enviando...';
+
+    try {
+      const nowIso = new Date().toISOString();
+      payload['Data da solicitação'] = nowIso;
+      payload['Data Extra'] = nowIso;
+      const res = await fetch(RB_DATA_API_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + RB_API_TOKEN,
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (!res.ok) {
+        const body = await res.text();
+        throw new Error(`HTTP ${res.status}: ${body}`);
+      }
+
+      closeOverlay('rb-request-overlay');
+      rbResetRequestForm();
+      goToStep(1);
+      rbToast('Reembolso solicitado com sucesso! Assim que a solicitação for aprovada, você poderá anexar os comprovantes.', 'success', 6000);
+      await loadReembolsos();
+    } catch (err) {
+      rbToast('Erro ao solicitar reembolso. Tente novamente.' + (err.message ? ' (' + err.message + ')' : ''), 'error');
+    } finally {
+      btn.disabled = false;
+      btn.textContent = originalLabel;
+    }
+  }
+
+  loadReembolsos();
+
+  // Avisa a página pai (Bubble) da altura real do conteúdo via postMessage —
+  // não dá pra ler isso direto (frame.contentDocument) porque este site está
+  // num domínio diferente do Bubble, e o navegador bloqueia acesso cross-origin
+  // ao DOM do iframe. Sem isso, o iframe fica com altura fixa e o conteúdo que
+  // passar disso ganha uma barra de rolagem própria, duplicada em relação à
+  // barra da página do Bubble.
+  let rbResizeTimer = null;
+  function rbNotifyParentHeight() {
+    clearTimeout(rbResizeTimer);
+    rbResizeTimer = setTimeout(() => {
+      const height = document.documentElement.scrollHeight;
+      try { window.parent.postMessage({ type: 'rb-resize', height }, '*'); } catch (e) {}
+    }, 50);
+  }
+  window.addEventListener('load', rbNotifyParentHeight);
+  window.addEventListener('resize', rbNotifyParentHeight);
+  new MutationObserver(rbNotifyParentHeight).observe(document.body, { childList: true, subtree: true });
+</script>
+</body>
+</html>
