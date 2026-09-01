@@ -158,7 +158,13 @@
 
 <div id="rb-toast-container" class="fixed top-4 right-4 z-[9999] flex flex-col gap-2 items-end"></div>
 
-<div id="rb-page" class="p-10 space-y-8">
+<!-- BANNER DE ERRO (mostrado se a URL não veio com os parâmetros do Bubble) — fora
+     dos dois containers de view porque nenhum dos dois chega a carregar sem uid. -->
+<div id="rb-ctx-error" class="rb-hidden bg-bianca-red/10 border border-bianca-red/30 text-bianca-red text-sm rounded-xl p-4 m-10">
+  Esta página precisa ser aberta de dentro do Nexiplay (faltam os parâmetros de identificação do usuário na URL). Se você chegou aqui direto, volte pro app e acesse via a página de Reembolsos.
+</div>
+
+<div id="rb-page" class="rb-hidden p-10 space-y-8">
 
   <!-- HEADER -->
   <div class="flex items-end justify-between flex-wrap gap-4 pb-5 border-b border-bianca-border rb-enter">
@@ -169,11 +175,6 @@
     <button class="rb-btn-primary px-5 py-2.5 rounded-xl bg-bianca-brand text-bianca-bg-main text-sm font-semibold glow-brand" onclick="openRequestModal()">
       Solicitar
     </button>
-  </div>
-
-  <!-- BANNER DE ERRO (mostrado se a URL não veio com os parâmetros do Bubble) -->
-  <div id="rb-ctx-error" class="rb-hidden bg-bianca-red/10 border border-bianca-red/30 text-bianca-red text-sm rounded-xl p-4">
-    Esta página precisa ser aberta de dentro do Nexiplay (faltam os parâmetros de identificação do usuário na URL). Se você chegou aqui direto, volte pro app e acesse via a página de Reembolsos.
   </div>
 
   <!-- KPI ROW (calculados no JS a partir do que foi buscado na Data API) -->
@@ -515,6 +516,169 @@
 
 </div>
 
+<!-- ============================================================
+     VISÃO FINANCEIRO — mostrada em vez da visão de colaborador
+     quando o usuário logado tem o campo "Reembolso" = true no
+     User (ver rbInit() no script). Vê TODOS os reembolsos (não só
+     os do usuário logado) e pode aprovar/negar. ============ -->
+<div id="rb-page-financeiro" class="rb-hidden p-10 space-y-8">
+
+  <!-- HEADER -->
+  <div class="flex items-end justify-between flex-wrap gap-4 pb-5 border-b border-bianca-border rb-enter">
+    <div class="space-y-1.5">
+      <p class="text-[10.5px] text-bianca-text-tertiary uppercase tracking-[.18em] font-bold">Pagamentos · Reembolsos</p>
+      <h1 class="text-2xl font-bold tracking-tight">Reembolsos — Financeiro</h1>
+    </div>
+  </div>
+
+  <!-- TABS -->
+  <div class="rb-pill-group" id="rb-fin-tab-bar">
+    <button class="rb-fin-tab-btn on" data-tab="todos" onclick="rbFinSetTab('todos')">Solicitações</button>
+    <button class="rb-fin-tab-btn" data-tab="aberto" onclick="rbFinSetTab('aberto')">Em aberto</button>
+    <button class="rb-fin-tab-btn" data-tab="pagos" onclick="rbFinSetTab('pagos')">Pagos</button>
+  </div>
+
+  <!-- KPI -->
+  <div class="rb-card rb-kpi relative overflow-hidden bg-bianca-bg-card border border-bianca-border rounded-2xl p-5 flex items-center justify-between rb-enter" style="--kpi-color:#09bc8a; animation-delay:.05s">
+    <div class="flex items-center gap-3">
+      <div class="rb-kpi-chip"><svg viewBox="0 0 20 20" fill="none"><path d="M4 10h12M10 4v12" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></div>
+      <span class="text-[11px] uppercase tracking-wide text-bianca-text-secondary font-bold">Número de reembolsos</span>
+    </div>
+    <p id="rb-fin-stat-count" class="font-mono text-[28px] font-bold">—</p>
+    <svg class="absolute right-5 top-1/2 -translate-y-1/2 w-16 h-16 opacity-[0.07] pointer-events-none" viewBox="0 0 24 24" fill="none" style="color:#09bc8a">
+      <path d="M6 2h12v20l-3-2-3 2-3-2-3 2z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/>
+      <path d="M9 7h6M9 11h6M9 15h3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
+    </svg>
+  </div>
+
+  <!-- TOOLBAR / BUSCA -->
+  <div class="flex items-center justify-end rb-enter" style="animation-delay:.1s">
+    <div class="relative">
+      <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-[13px] h-[13px] text-bianca-text-tertiary pointer-events-none" viewBox="0 0 20 20" fill="none"><circle cx="9" cy="9" r="6" stroke="currentColor" stroke-width="1.6"/><path d="M17 17l-3.5-3.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+      <input id="rb-fin-search" type="text" placeholder="Nome do colaborador" oninput="rbFinOnSearchInput()"
+        class="rb-input pl-9 pr-4 py-2.5 rounded-xl bg-bianca-bg-card border border-bianca-border text-bianca-text-primary text-[12.5px] placeholder:text-bianca-text-tertiary focus:outline-none focus:border-bianca-brand w-64" />
+    </div>
+  </div>
+
+  <!-- TABLE -->
+  <div class="bg-bianca-bg-card border border-bianca-border rounded-2xl overflow-hidden rb-enter" style="animation-delay:.15s">
+    <div class="px-5 py-4 border-b border-bianca-border flex items-center justify-between">
+      <p id="rb-fin-table-title" class="text-[13.5px] font-bold">Reembolsos solicitados</p>
+    </div>
+    <div class="overflow-x-auto">
+      <table class="w-full min-w-[640px]">
+        <thead>
+          <tr class="bg-bianca-bg-hover">
+            <th class="text-left text-[10px] uppercase tracking-[.09em] text-bianca-text-tertiary font-bold px-5 py-2.5">Colaborador</th>
+            <th class="text-left text-[10px] uppercase tracking-[.09em] text-bianca-text-tertiary font-bold px-5 py-2.5">Tipo</th>
+            <th class="text-left text-[10px] uppercase tracking-[.09em] text-bianca-text-tertiary font-bold px-5 py-2.5">Data</th>
+            <th class="text-left text-[10px] uppercase tracking-[.09em] text-bianca-text-tertiary font-bold px-5 py-2.5">Status</th>
+            <th class="text-right text-[10px] uppercase tracking-[.09em] text-bianca-text-tertiary font-bold px-5 py-2.5">Valor</th>
+            <th class="text-right text-[10px] uppercase tracking-[.09em] text-bianca-text-tertiary font-bold px-5 py-2.5">Ações</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-bianca-border-soft" id="rb-fin-tbody"></tbody>
+      </table>
+    </div>
+    <div id="rb-fin-empty" class="rb-hidden px-5 py-10 text-center text-sm text-bianca-text-secondary">Nenhum reembolso encontrado com esse filtro.</div>
+    <div id="rb-fin-pagination" class="rb-hidden flex items-center justify-center gap-3 px-5 py-4 border-t border-bianca-border">
+      <button id="rb-fin-page-prev" class="px-3 py-1.5 rounded-lg border border-bianca-border text-xs font-medium text-bianca-text-secondary hover:bg-bianca-bg-hover hover:text-bianca-text-primary disabled:opacity-40 disabled:cursor-not-allowed transition-colors" onclick="rbFinChangePage(-1)">‹</button>
+      <p id="rb-fin-page-label" class="text-xs text-bianca-text-secondary font-mono"></p>
+      <button id="rb-fin-page-next" class="px-3 py-1.5 rounded-lg border border-bianca-border text-xs font-medium text-bianca-text-secondary hover:bg-bianca-bg-hover hover:text-bianca-text-primary disabled:opacity-40 disabled:cursor-not-allowed transition-colors" onclick="rbFinChangePage(1)">›</button>
+      <span class="text-bianca-text-tertiary text-xs ml-2">Ir para página</span>
+      <input id="rb-fin-page-jump" type="number" min="1" class="rb-input w-14 px-2 py-1.5 rounded-lg bg-bianca-bg-main border border-bianca-border text-bianca-text-primary text-xs font-mono focus:outline-none focus:border-bianca-brand" onkeydown="if(event.key==='Enter'){rbFinJumpToPage(this.value); this.value='';}" />
+    </div>
+  </div>
+
+  <!-- DETAILS MODAL (FINANCEIRO) -->
+  <div id="rb-fin-details-overlay" class="rb-overlay fixed inset-0 bg-black/70 items-center justify-center z-50 p-6">
+    <div class="bg-bianca-bg-card border border-bianca-border rounded-2xl overflow-hidden w-full max-w-md max-h-[90vh] flex flex-col shadow-2xl shadow-black/60">
+      <div class="flex items-center justify-between px-6 py-5 border-b border-bianca-border shrink-0">
+        <h3 class="text-lg font-bold">Detalhes do Reembolso</h3>
+        <button class="text-bianca-text-secondary hover:text-bianca-text-primary transition-colors" onclick="closeOverlay('rb-fin-details-overlay')">✕</button>
+      </div>
+      <div class="p-6 space-y-4 overflow-y-auto">
+
+        <div class="grid grid-cols-2 gap-3">
+          <div class="bg-bianca-bg-main border border-bianca-border-soft rounded-xl p-3.5">
+            <div class="flex items-center gap-1.5 text-[10px] text-bianca-text-tertiary uppercase tracking-wide font-bold mb-1.5">
+              <svg class="w-3.5 h-3.5" viewBox="0 0 20 20" fill="none"><circle cx="10" cy="6.5" r="3.2" stroke="currentColor" stroke-width="1.5"/><path d="M3.5 17c0-3.6 2.9-6 6.5-6s6.5 2.4 6.5 6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+              Colaborador
+            </div>
+            <p id="rb-fin-d-colaborador" class="text-sm font-semibold"></p>
+            <p id="rb-fin-d-lider" class="text-[11px] text-bianca-text-secondary mt-0.5"></p>
+          </div>
+          <div class="bg-bianca-bg-main border border-bianca-border-soft rounded-xl p-3.5">
+            <div class="flex items-center gap-1.5 text-[10px] text-bianca-text-tertiary uppercase tracking-wide font-bold mb-1.5">
+              <svg class="w-3.5 h-3.5" viewBox="0 0 20 20" fill="none"><path d="M5 2.5h7l3 3v12h-10z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M7.5 9h5M7.5 12h5M7.5 15h3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+              Tipo
+            </div>
+            <p id="rb-fin-d-tipo" class="text-sm font-semibold"></p>
+          </div>
+          <div class="bg-bianca-bg-main border border-bianca-border-soft rounded-xl p-3.5">
+            <div class="flex items-center gap-1.5 text-[10px] text-bianca-text-tertiary uppercase tracking-wide font-bold mb-1.5">
+              <svg class="w-3.5 h-3.5" viewBox="0 0 20 20" fill="none"><rect x="3" y="4" width="14" height="13" rx="2" stroke="currentColor" stroke-width="1.5"/><path d="M3 8h14M7 2.5v3M13 2.5v3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+              Data de Criação
+            </div>
+            <p id="rb-fin-d-data" class="text-sm font-semibold font-mono"></p>
+          </div>
+          <div class="bg-bianca-bg-main border border-bianca-border-soft rounded-xl p-3.5">
+            <div class="flex items-center gap-1.5 text-[10px] text-bianca-text-tertiary uppercase tracking-wide font-bold mb-1.5">
+              <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              Valor
+            </div>
+            <p id="rb-fin-d-valor" class="text-sm font-semibold font-mono"></p>
+          </div>
+        </div>
+
+        <div class="bg-bianca-bg-main border border-bianca-border-soft rounded-xl p-3.5">
+          <p class="text-[10px] text-bianca-text-tertiary uppercase tracking-wide font-bold mb-1.5">Cliente</p>
+          <p id="rb-fin-d-cliente" class="text-sm text-bianca-text-secondary"></p>
+        </div>
+
+        <div class="bg-bianca-bg-main border border-bianca-border-soft rounded-xl p-3.5">
+          <p class="text-[10px] text-bianca-text-tertiary uppercase tracking-wide font-bold mb-1.5">Descrição</p>
+          <p id="rb-fin-d-descricao" class="text-sm text-bianca-text-secondary leading-relaxed"></p>
+        </div>
+
+        <div class="bg-bianca-bg-main border border-bianca-border-soft rounded-xl p-3.5">
+          <p class="text-[10px] text-bianca-text-tertiary uppercase tracking-wide font-bold mb-2.5">Status Solicitação</p>
+          <div class="grid grid-cols-2 gap-3">
+            <div class="space-y-1">
+              <p class="text-[10px] text-bianca-text-tertiary flex items-center gap-1"><svg class="w-3 h-3" viewBox="0 0 20 20" fill="none"><circle cx="10" cy="10" r="7.2" stroke="currentColor" stroke-width="1.5"/><path d="M10 6v4l2.6 2.6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>Status Solicitação</p>
+              <div id="rb-fin-d-status-solicitacao"></div>
+              <p id="rb-fin-d-apr-solicitacao" class="text-[11px] text-bianca-text-tertiary font-mono"></p>
+            </div>
+            <div class="space-y-1">
+              <p class="text-[10px] text-bianca-text-tertiary flex items-center gap-1"><svg class="w-3 h-3" viewBox="0 0 24 24" fill="none"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>Status Financeiro</p>
+              <div id="rb-fin-d-status-financeiro"></div>
+              <p id="rb-fin-d-apr-financeiro" class="text-[11px] text-bianca-text-tertiary font-mono"></p>
+            </div>
+          </div>
+        </div>
+
+        <div id="rb-fin-d-anexos-wrap" class="rb-hidden bg-bianca-bg-main border border-bianca-border-soft rounded-xl p-3.5">
+          <p class="text-[10px] text-bianca-text-tertiary uppercase tracking-wide font-bold mb-2">Anexos</p>
+          <div id="rb-fin-d-anexos" class="flex flex-wrap gap-2"></div>
+        </div>
+
+        <label id="rb-fin-d-check-wrap" class="rb-hidden rb-check-label flex items-center gap-2.5 text-xs text-bianca-text-secondary cursor-pointer">
+          <input id="rb-fin-d-check" type="checkbox" class="rb-check-input" />
+          <span class="rb-check-box"><svg class="rb-check-icon" viewBox="0 0 12 10" fill="none"><path d="M1 5L4.5 8.5L11 1.5" stroke="white" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+          Eu verifiquei os comprovantes anexados
+        </label>
+
+        <div id="rb-fin-d-actions" class="rb-hidden flex gap-3 pt-1">
+          <button id="rb-fin-d-deny-btn" class="flex-1 px-5 py-2.5 rounded-xl bg-bianca-red text-white text-sm font-semibold transition-transform hover:-translate-y-px" onclick="rbFinDecide('negar')">Negar solicitação</button>
+          <button id="rb-fin-d-approve-btn" class="rb-btn-primary flex-1 px-5 py-2.5 rounded-xl bg-bianca-brand text-bianca-bg-main text-sm font-semibold glow-brand disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:translate-y-0 disabled:hover:shadow-none" onclick="rbFinDecide('aprovar')">Aprovar solicitação</button>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+</div>
+
 <script>
   // Contexto do usuário logado, lido dos parâmetros da URL (o Bubble monta o
   // <iframe src="...?uid=...&uname=...&cid=...&eid=..."> com dynamic data).
@@ -525,11 +689,7 @@
     clienteId: RB_PARAMS.get('cid') || '',
     empresaId: RB_PARAMS.get('eid') || '',
   };
-  if (!RB_CTX.userId) {
-    document.getElementById('rb-ctx-error').classList.remove('rb-hidden');
-  }
-
-  ['rb-action-overlay', 'rb-request-overlay', 'rb-details-overlay', 'rb-attach-overlay'].forEach(id => {
+  ['rb-action-overlay', 'rb-request-overlay', 'rb-details-overlay', 'rb-attach-overlay', 'rb-fin-details-overlay'].forEach(id => {
     const el = document.getElementById(id);
     if (el) document.body.appendChild(el);
   });
@@ -632,6 +792,7 @@
   // riscos de ele também listar dados (não só criar).
   const RB_DATA_API_URL = 'https://nexiplay.com/version-93hzi/api/1.1/obj/Reembolso';
   const RB_API_TOKEN = '4a6bbc25ef41cda5bca86036a83e5f75';
+  const RB_USER_API_URL = 'https://nexiplay.com/version-93hzi/api/1.1/obj/User';
 
   let rbRequests = [];
 
@@ -1344,7 +1505,319 @@
     }
   }
 
-  loadReembolsos();
+  /* ============================================================
+     VISÃO FINANCEIRO — mesma Data API, mesmo token, mas sem o filtro
+     por "user" (vê TODOS os reembolsos) e com ações de aprovar/negar.
+     Ver reembolso.md pra decisão de manter escrita direta pela Data
+     API aqui também (risco aceito conscientemente em 2026-09-01).
+     ============================================================ */
+
+  // Resolve nome + líder de um User pelo id, com cache — usado tanto pro
+  // nome do colaborador na tabela/modal quanto pro nome do líder no modal.
+  const rbUserInfoCache = {};
+  async function rbGetUserInfo(userId) {
+    if (!userId) return null;
+    if (rbUserInfoCache[userId]) return rbUserInfoCache[userId];
+    try {
+      const res = await fetch(`${RB_USER_API_URL}/${userId}`, { headers: { Authorization: 'Bearer ' + RB_API_TOKEN } });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      const info = {
+        nome: (data.response && data.response['Nome completo']) || '—',
+        liderId: (data.response && data.response['Lider']) || null,
+        // "Reembolso" = true é quem tem permissão de administrar/aprovar
+        // reembolsos (confirmado batendo com usuários reais: "Financeiro",
+        // Guilherme Neira — o PM que aprovou o design desta página).
+        isFinanceiro: (data.response && data.response['Reembolso']) === true,
+      };
+      rbUserInfoCache[userId] = info;
+      return info;
+    } catch (err) {
+      console.error('Erro ao buscar usuário', err);
+      return null;
+    }
+  }
+
+  // Do ponto de vista do financeiro (diferente de deriveGroup, que é do ponto
+  // de vista do colaborador): "Em aberto" só depois que o colaborador já
+  // anexou o comprovante (Status Financeiro = Enviado) E a solicitação em si
+  // já foi aprovada — aguardando só a conferência dos comprovantes. "Pagos"
+  // é quando o financeiro já aprovou o pagamento em si.
+  function deriveGroupFinanceiro(statusSolicitacao, statusFinanceiro) {
+    if (statusFinanceiro === 'Aprovado') return 'pagos';
+    if (statusSolicitacao === 'Aprovado' && statusFinanceiro === 'Enviado') return 'aberto';
+    return null; // só aparece na aba "Solicitações" (todos, sem filtro)
+  }
+
+  function mapReembolsoApiFinanceiro(raw, userInfo) {
+    const statusSolicitacao = raw['Status Solicitacao'];
+    const statusFinanceiro = raw['Status Financeiro'];
+    const valorNum = raw['Valor Total'] || 0;
+    return {
+      id: raw._id,
+      userId: raw['user'] || null,
+      nome: (userInfo && userInfo.nome) || '—',
+      liderId: (userInfo && userInfo.liderId) || null,
+      tipo: raw['Tipo de Reembolso'] || '—',
+      criacaoRaw: raw['Data da solicitação'] || '',
+      criacao: formatDateBR(raw['Data da solicitação']) || '—',
+      valorNum,
+      valor: valorNum ? formatBRL(valorNum) : null,
+      statusSolicitacao,
+      aprSolicitacao: formatDateBR(raw['Data da Aprovação Solicitação']),
+      statusFinanceiro,
+      aprFinanceiro: formatDateBR(raw['Data de Aprovação Financeiro']),
+      clienteId: raw['cliente'] || null,
+      descricao: raw['Descrição Extra'] || raw['Descrição despesa'] || '',
+      group: deriveGroupFinanceiro(statusSolicitacao, statusFinanceiro),
+      anexosSalvos: {
+        'Transporte': raw['Anexo Transporte'] || [],
+        'Alimentação': raw['Anexo Alimentação'] || [],
+        'Estadia': raw['Anexo Estadia'] || [],
+        'Extra': raw['Anexo Extra'] || [],
+        'Despesa_direta': raw['Anexo Despesa_direta'] || [],
+      },
+    };
+  }
+
+  let rbFinRequests = [];
+  let rbFinActiveTab = 'todos';
+  let rbFinCurrentPage = 1;
+  const RB_FIN_PAGE_SIZE = 10;
+  const rbFinTabLabels = { todos: 'Reembolsos solicitados', aberto: 'Reembolsos em aberto', pagos: 'Reembolsos pagos' };
+
+  async function loadReembolsosFinanceiro() {
+    const tbody = document.getElementById('rb-fin-tbody');
+    tbody.innerHTML = '<tr><td colspan="6" class="px-5 py-8 text-center text-sm text-bianca-text-secondary">Carregando...</td></tr>';
+    document.getElementById('rb-fin-empty').classList.add('rb-hidden');
+
+    try {
+      // Sem constraint de "user" — visão administrativa vê os reembolsos de
+      // todo mundo. Pagina até 1000 registros (mesmo teto usado na busca de
+      // Clientes), igual ao padrão já estabelecido no resto do site.
+      const collected = [];
+      let cursor = 0;
+      for (let page = 0; page < 10; page++) {
+        const url = `${RB_DATA_API_URL}?limit=100&cursor=${cursor}`;
+        const res = await fetch(url, { headers: { Authorization: 'Bearer ' + RB_API_TOKEN } });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        const results = (data.response && data.response.results) || [];
+        collected.push(...results);
+        const remaining = (data.response && data.response.remaining) || 0;
+        cursor += results.length;
+        if (remaining <= 0 || results.length === 0) break;
+      }
+
+      // Resolve o nome de cada colaborador único referenciado (uma vez cada,
+      // em paralelo, com cache) — evita 1 fetch por linha da tabela.
+      const uniqueUserIds = [...new Set(collected.map(r => r['user']).filter(Boolean))];
+      const userInfos = {};
+      await Promise.all(uniqueUserIds.map(async id => { userInfos[id] = await rbGetUserInfo(id); }));
+
+      rbFinRequests = collected
+        .map(raw => mapReembolsoApiFinanceiro(raw, userInfos[raw['user']]))
+        .sort((a, b) => new Date(b.criacaoRaw) - new Date(a.criacaoRaw));
+
+      document.getElementById('rb-fin-stat-count').textContent = rbFinRequests.length;
+      rbFinSetTab(rbFinActiveTab);
+    } catch (err) {
+      tbody.innerHTML = `<tr><td colspan="6" class="px-5 py-8 text-center text-sm text-bianca-text-secondary">Erro ao carregar reembolsos. <a href="#" onclick="loadReembolsosFinanceiro(); return false;" class="text-bianca-brand hover:underline">Tentar novamente</a></td></tr>`;
+      console.error('Erro ao carregar reembolsos (financeiro)', err);
+    }
+  }
+
+  function rbFinSetTab(tab) {
+    rbFinActiveTab = tab;
+    rbFinCurrentPage = 1;
+    document.querySelectorAll('.rb-fin-tab-btn').forEach(btn => btn.classList.toggle('on', btn.dataset.tab === tab));
+    document.getElementById('rb-fin-table-title').textContent = rbFinTabLabels[tab];
+    rbFinRenderTable();
+  }
+
+  function rbFinRenderTable() {
+    const search = document.getElementById('rb-fin-search').value.toLowerCase();
+    const filtered = rbFinRequests.filter(r =>
+      (rbFinActiveTab === 'todos' || r.group === rbFinActiveTab) &&
+      r.nome.toLowerCase().includes(search)
+    );
+
+    document.getElementById('rb-fin-empty').classList.toggle('rb-hidden', filtered.length > 0);
+
+    const totalPages = Math.max(1, Math.ceil(filtered.length / RB_FIN_PAGE_SIZE));
+    if (rbFinCurrentPage > totalPages) rbFinCurrentPage = totalPages;
+    const start = (rbFinCurrentPage - 1) * RB_FIN_PAGE_SIZE;
+    const pageItems = filtered.slice(start, start + RB_FIN_PAGE_SIZE);
+
+    const tbody = document.getElementById('rb-fin-tbody');
+    tbody.innerHTML = pageItems.map(r => {
+      const i = rbFinRequests.indexOf(r);
+      return `
+      <tr class="rb-row cursor-pointer hover:bg-bianca-bg-hover" onclick="rbFinOpenDetails(${i})">
+        <td class="px-5 py-4 text-sm font-medium">${escapeHtml(r.nome)}</td>
+        <td class="px-5 py-4 text-sm text-bianca-text-secondary">${r.tipo}</td>
+        <td class="px-5 py-4 text-sm text-bianca-text-secondary font-mono">${r.criacao}</td>
+        <td class="px-5 py-4"><div class="flex flex-col gap-1 items-start">${statusBadge(r.statusSolicitacao)}${statusBadge(r.statusFinanceiro)}</div></td>
+        <td class="px-5 py-4 text-sm text-right font-mono ${r.valor ? 'font-semibold' : 'text-bianca-text-secondary'}">${r.valor || '—'}</td>
+        <td class="px-5 py-4 text-right"><button class="px-3 py-1.5 rounded-lg border border-bianca-border text-xs font-semibold text-bianca-text-primary hover:bg-bianca-brand hover:text-bianca-bg-main hover:border-bianca-brand transition-colors" onclick="event.stopPropagation(); rbFinOpenDetails(${i})">Detalhes →</button></td>
+      </tr>`;
+    }).join('');
+
+    document.getElementById('rb-fin-pagination').classList.toggle('rb-hidden', filtered.length === 0);
+    document.getElementById('rb-fin-page-label').textContent = `${rbFinCurrentPage} of ${totalPages}`;
+    document.getElementById('rb-fin-page-prev').disabled = rbFinCurrentPage <= 1;
+    document.getElementById('rb-fin-page-next').disabled = rbFinCurrentPage >= totalPages;
+  }
+
+  function rbFinChangePage(delta) {
+    rbFinCurrentPage += delta;
+    rbFinRenderTable();
+  }
+  function rbFinJumpToPage(val) {
+    const n = parseInt(val, 10);
+    if (!isNaN(n) && n >= 1) { rbFinCurrentPage = n; rbFinRenderTable(); }
+  }
+  function rbFinOnSearchInput() {
+    rbFinCurrentPage = 1;
+    rbFinRenderTable();
+  }
+
+  function rbFinOpenDetails(i) {
+    const r = rbFinRequests[i];
+    document.getElementById('rb-fin-d-colaborador').textContent = r.nome;
+
+    const liderEl = document.getElementById('rb-fin-d-lider');
+    if (r.liderId) {
+      liderEl.textContent = 'Líder: carregando...';
+      rbGetUserInfo(r.liderId).then(info => { liderEl.textContent = 'Líder: ' + (info ? info.nome : '—'); });
+    } else {
+      liderEl.textContent = '';
+    }
+
+    document.getElementById('rb-fin-d-tipo').textContent = r.tipo;
+    document.getElementById('rb-fin-d-data').textContent = r.criacao;
+    document.getElementById('rb-fin-d-valor').textContent = r.valor || '—';
+
+    const clienteEl = document.getElementById('rb-fin-d-cliente');
+    if (r.clienteId) {
+      clienteEl.textContent = 'Carregando...';
+      rbGetClienteName(r.clienteId).then(nome => { clienteEl.textContent = nome || '—'; });
+    } else {
+      clienteEl.textContent = '—';
+    }
+
+    document.getElementById('rb-fin-d-descricao').textContent = r.descricao || '—';
+
+    document.getElementById('rb-fin-d-status-solicitacao').innerHTML = statusBadge(r.statusSolicitacao);
+    document.getElementById('rb-fin-d-apr-solicitacao').textContent = r.aprSolicitacao || '-';
+    document.getElementById('rb-fin-d-status-financeiro').innerHTML = statusBadge(r.statusFinanceiro);
+    document.getElementById('rb-fin-d-apr-financeiro').textContent = r.aprFinanceiro || '-';
+
+    const anexosSalvos = Object.entries(r.anexosSalvos || {}).flatMap(([cat, urls]) => urls.map(url => ({ cat, url })));
+    const anexosWrap = document.getElementById('rb-fin-d-anexos-wrap');
+    const anexosEl = document.getElementById('rb-fin-d-anexos');
+    if (anexosSalvos.length) {
+      anexosWrap.classList.remove('rb-hidden');
+      anexosEl.innerHTML = anexosSalvos.map(({ cat, url }) => `
+        <a href="${escapeHtml(rbFileUrl(url))}" target="_blank" rel="noopener" class="rb-chip inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-bianca-bg-card border border-bianca-border text-xs text-bianca-text-primary hover:border-bianca-brand transition-colors">
+          <span>📎</span><span class="truncate max-w-[110px]">${escapeHtml(rbFileName(url))}</span>
+        </a>
+      `).join('');
+    } else {
+      anexosWrap.classList.add('rb-hidden');
+      anexosEl.innerHTML = '';
+    }
+
+    // Os botões trocam de alvo dependendo de qual decisão está pendente:
+    // enquanto a Solicitação em si não foi decidida, eles decidem a
+    // Solicitação; depois de aprovada, quando o comprovante já chegou
+    // (Financeiro = Enviado), eles passam a decidir o pagamento em si
+    // (travado atrás do checkbox de conferência dos comprovantes).
+    let actionMode = null;
+    if (r.statusSolicitacao === 'Enviado') {
+      actionMode = 'solicitacao';
+    } else if (r.statusSolicitacao === 'Aprovado' && r.statusFinanceiro === 'Enviado') {
+      actionMode = 'financeiro';
+    }
+
+    const checkbox = document.getElementById('rb-fin-d-check');
+    checkbox.checked = false;
+    document.getElementById('rb-fin-d-check-wrap').classList.toggle('rb-hidden', actionMode !== 'financeiro');
+    document.getElementById('rb-fin-d-actions').classList.toggle('rb-hidden', !actionMode);
+    document.getElementById('rb-fin-d-approve-btn').disabled = actionMode === 'financeiro';
+
+    const overlay = document.getElementById('rb-fin-details-overlay');
+    overlay.dataset.reqIndex = i;
+    overlay.dataset.actionMode = actionMode || '';
+    rbOpenOverlay('rb-fin-details-overlay');
+  }
+
+  document.getElementById('rb-fin-d-check').addEventListener('change', function () {
+    document.getElementById('rb-fin-d-approve-btn').disabled = !this.checked;
+  });
+
+  async function rbFinDecide(decision) {
+    const overlay = document.getElementById('rb-fin-details-overlay');
+    const i = parseInt(overlay.dataset.reqIndex, 10);
+    const actionMode = overlay.dataset.actionMode;
+    const r = rbFinRequests[i];
+    if (!actionMode || !r) return;
+
+    const payload = {};
+    const nowIso = new Date().toISOString();
+    if (actionMode === 'solicitacao') {
+      payload['Status Solicitacao'] = decision === 'aprovar' ? 'Aprovado' : 'Negado';
+      if (decision === 'aprovar') payload['Data da Aprovação Solicitação'] = nowIso;
+    } else {
+      payload['Status Financeiro'] = decision === 'aprovar' ? 'Aprovado' : 'Não Aprovado';
+      if (decision === 'aprovar') payload['Data de Aprovação Financeiro'] = nowIso;
+    }
+
+    const approveBtn = document.getElementById('rb-fin-d-approve-btn');
+    const denyBtn = document.getElementById('rb-fin-d-deny-btn');
+    approveBtn.disabled = true;
+    denyBtn.disabled = true;
+
+    try {
+      const res = await fetch(`${RB_DATA_API_URL}/${r.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + RB_API_TOKEN },
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) {
+        const body = await res.text();
+        throw new Error(`HTTP ${res.status}: ${body}`);
+      }
+      closeOverlay('rb-fin-details-overlay');
+      rbToast(decision === 'aprovar' ? 'Solicitação aprovada.' : 'Solicitação negada.', 'success');
+      await loadReembolsosFinanceiro();
+    } catch (err) {
+      rbToast('Erro ao registrar decisão. Tente novamente.' + (err.message ? ' (' + err.message + ')' : ''), 'error');
+      denyBtn.disabled = false;
+      // approveBtn só volta a ficar habilitado se o modo não exigir o checkbox
+      approveBtn.disabled = actionMode === 'financeiro' && !document.getElementById('rb-fin-d-check').checked;
+    }
+  }
+
+  // Ponto de entrada: decide, a partir do usuário logado, se mostra a visão
+  // de colaborador (padrão) ou a visão financeiro (quem tem "Reembolso" =
+  // true no User) — pedido explícito de checar o usuário logado pra decidir
+  // qual página mostrar, em vez de duas páginas/arquivos separados.
+  async function rbInit() {
+    if (!RB_CTX.userId) {
+      document.getElementById('rb-ctx-error').classList.remove('rb-hidden');
+      return;
+    }
+    const info = await rbGetUserInfo(RB_CTX.userId);
+    if (info && info.isFinanceiro) {
+      document.getElementById('rb-page-financeiro').classList.remove('rb-hidden');
+      loadReembolsosFinanceiro();
+    } else {
+      document.getElementById('rb-page').classList.remove('rb-hidden');
+      loadReembolsos();
+    }
+  }
+  rbInit();
 
   // Avisa a página pai (Bubble) da altura real do conteúdo via postMessage —
   // não dá pra ler isso direto (frame.contentDocument) porque este site está
