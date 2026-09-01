@@ -1733,7 +1733,10 @@
     const mesAtual = now.toLocaleDateString('pt-BR', { month: 'long' });
     const mesAtualCap = mesAtual.charAt(0).toUpperCase() + mesAtual.slice(1);
 
-    const todosF = rbFinRequests.filter(bySearch);
+    // "Número de reembolsos" (Solicitações) = tudo que AINDA NÃO foi pago —
+    // negado, em andamento, esperando comprovante ou esperando conferência
+    // financeira. Nunca conta os já pagos (esses são a aba "Pagos").
+    const todosF = rbFinRequests.filter(r => r.group !== 'pagos' && bySearch(r));
     document.getElementById('rb-fin-kpi-todos-count').textContent = todosF.length || '—';
 
     const abertoF = rbFinRequests.filter(r => r.group === 'aberto' && bySearch(r));
@@ -1742,17 +1745,24 @@
     document.getElementById('rb-fin-kpi-aberto-total-label').textContent = `Total solicitado - ${mesAtualCap}`;
     document.getElementById('rb-fin-kpi-aberto-total').textContent = totalAbertoMes ? formatBRL(totalAbertoMes) : '—';
 
-    const pagosF = rbFinRequests.filter(r => r.group === 'pagos' && bySearch(r));
-    document.getElementById('rb-fin-kpi-pagos-count').textContent = pagosF.length || '—';
-    const totalPagoMes = pagosF.filter(r => isCurrentMonth(r.aprFinanceiroRaw)).reduce((s, r) => s + r.valorNum, 0);
+    // "Pagos" é sempre relativo ao MÊS (contagem e valor) — quem paga é o
+    // financeiro, então a data que conta é "Data de Aprovação Financeiro",
+    // nunca a data da solicitação (que pode ser do mês anterior: pedido em
+    // agosto só é pago em setembro, por exemplo).
+    const pagosAll = rbFinRequests.filter(r => r.group === 'pagos' && bySearch(r));
+    const pagosMes = pagosAll.filter(r => isCurrentMonth(r.aprFinanceiroRaw));
+    document.getElementById('rb-fin-kpi-pagos-count').textContent = pagosMes.length || '—';
+    const totalPagoMes = pagosMes.reduce((s, r) => s + r.valorNum, 0);
     document.getElementById('rb-fin-kpi-pagos-total-label').textContent = `Total pago no mês - ${mesAtualCap}`;
     document.getElementById('rb-fin-kpi-pagos-total').textContent = totalPagoMes ? formatBRL(totalPagoMes) : '—';
   }
 
   function rbFinRenderTable() {
     const search = document.getElementById('rb-fin-search').value.toLowerCase();
+    // Aba "Solicitações" (todos) exclui os já pagos — mesma regra do KPI
+    // acima, pra tabela e card nunca mostrarem números diferentes.
     const filtered = rbFinRequests.filter(r =>
-      (rbFinActiveTab === 'todos' || r.group === rbFinActiveTab) &&
+      (rbFinActiveTab === 'todos' ? r.group !== 'pagos' : r.group === rbFinActiveTab) &&
       r.nome.toLowerCase().includes(search)
     );
 
