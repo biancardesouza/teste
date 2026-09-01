@@ -755,12 +755,27 @@
 <script>
   // Contexto do usuário logado, lido dos parâmetros da URL (o Bubble monta o
   // <iframe src="...?uid=...&uname=...&cid=...&eid=..."> com dynamic data).
+  //
+  // Confirmado em 2026-09-01: o Bubble às vezes bagunça a tag <iframe> ao
+  // salvar o elemento HTML (já vimos atributos vizinhos se misturarem, ex.:
+  // title=" reembolsos"=""). Isso não é só cosmético — um "eid" chegou com
+  // ` title="` grudado no final (`1698...800 title="`), que o site mandava
+  // direto pro Bubble na criação do Reembolso, causando "object with this id
+  // does not exist" (o Bubble rejeitava certo — o valor sujo realmente não
+  // existe). rbCleanBubbleId() corta qualquer coisa depois do padrão de um
+  // unique id de verdade (dígitos + "x" + dígitos), então não importa que
+  // lixo venha grudado atrás, só o id limpo é usado.
+  function rbCleanBubbleId(raw) {
+    if (!raw) return '';
+    const m = raw.match(/^\d+x\d+/);
+    return m ? m[0] : raw.trim();
+  }
   const RB_PARAMS = new URLSearchParams(window.location.search);
   const RB_CTX = {
-    userId: RB_PARAMS.get('uid') || '',
-    userName: RB_PARAMS.get('uname') || '',
-    clienteId: RB_PARAMS.get('cid') || '',
-    empresaId: RB_PARAMS.get('eid') || '',
+    userId: rbCleanBubbleId(RB_PARAMS.get('uid')),
+    userName: (RB_PARAMS.get('uname') || '').trim(),
+    clienteId: rbCleanBubbleId(RB_PARAMS.get('cid')),
+    empresaId: rbCleanBubbleId(RB_PARAMS.get('eid')),
   };
   ['rb-action-overlay', 'rb-request-overlay', 'rb-details-overlay', 'rb-attach-overlay', 'rb-fin-details-overlay'].forEach(id => {
     const el = document.getElementById(id);
@@ -1347,28 +1362,33 @@
   });
 
   /* ============ overlays ============ */
-  // Um iframe nunca consegue cobrir visualmente elementos FORA dele (a barra
-  // lateral do Bubble, por exemplo) — é uma barreira do próprio navegador,
-  // não uma configuração de CSS. A solução é avisar o Bubble (via postMessage)
-  // sempre que um modal abrir/fechar, pra ele mesmo alternar o iframe entre
-  // "encaixado ao lado da barra" (normal) e "tela cheia por cima de tudo"
-  // (com um modal aberto). O contador evita mandar "fechou" só porque um
-  // modal fechou pra abrir outro na sequência (ex.: Detalhes → Anexar).
+  // 2026-09-01: abandonada a tentativa de fazer o modal cobrir a tela toda
+  // (inclusive a barra lateral do Bubble). A solução anterior fazia o
+  // iframe virar position:fixed cobrindo a tela inteira quando um modal
+  // abria — mas isso colocava o iframe por baixo de elementos do próprio
+  // Bubble com z-index alto (sidebar, header), fazendo esses elementos
+  // "vazarem" por cima da área que devia ser o fundo escuro do modal. Agora
+  // o modal só cobre a área do próprio iframe (que já é position:fixed
+  // inset:0 *dentro* do documento do iframe) — mais simples, sem depender
+  // de position:fixed escapando do iframe. O contador evita tirar o fundo
+  // opaco só porque um modal fechou pra abrir outro em sequência (ex.:
+  // Detalhes → Anexar).
   let rbOpenOverlayCount = 0;
 
   function rbOpenOverlay(id) {
     document.getElementById(id).classList.add('open');
     rbOpenOverlayCount++;
+    // Fundo opaco enquanto o modal está aberto — sem isso, a página do
+    // Bubble por trás aparece através do fundo escuro semi-transparente do
+    // modal (bg-black/70), já que o body é transparente por padrão.
     document.body.classList.add('rb-overlay-active');
-    try { window.parent.postMessage({ type: 'rb-modal-open' }, '*'); } catch (e) {}
   }
 
   function closeOverlay(id) {
     document.getElementById(id).classList.remove('open');
     rbOpenOverlayCount = Math.max(0, rbOpenOverlayCount - 1);
-    if (rbOpenOverlayCount === 0) document.body.classList.remove('rb-overlay-active');
     if (rbOpenOverlayCount === 0) {
-      try { window.parent.postMessage({ type: 'rb-modal-close' }, '*'); } catch (e) {}
+      document.body.classList.remove('rb-overlay-active');
       rbNotifyParentHeight();
     }
   }
