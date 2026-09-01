@@ -58,11 +58,15 @@
 </script>
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
 <style>
-  /* Sem cor de fundo própria de propósito — mesmo motivo do index.html: o
-     iframe fica transparente e quem pinta o fundo é a página do Bubble por
-     baixo, sem rolagem própria (overflow: hidden), só a barra da página. */
-  html, body { margin: 0; overflow: hidden; }
-  #rb-page { background-color: transparent; }
+  /* 2026-09-01: voltou a ter rolagem própria de propósito. O ajuste dinâmico
+     de altura via postMessage (iframe crescendo pra caber o conteúdo, sem
+     scroll próprio) se mostrou frágil contra o jeito que o Bubble reprocessa
+     o elemento HTML — depois de várias tentativas sem sucesso, a troca foi
+     por um iframe de altura FIXA (100vh, ver reembolso-elemento-html.html)
+     com rolagem interna normal. Fundo continua transparente, quem pinta é a
+     página do Bubble por baixo. */
+  html, body { margin: 0; overflow-y: auto; }
+  #rb-page, #rb-page-financeiro { background-color: transparent; }
 
   .glow-brand  { box-shadow: 0 0 16px rgba(9, 188, 138, 0.22); }
   .glow-yellow { box-shadow: 0 0 16px rgba(240, 160, 32, 0.18); }
@@ -1354,7 +1358,6 @@
     rbOpenOverlayCount = Math.max(0, rbOpenOverlayCount - 1);
     if (rbOpenOverlayCount === 0) {
       try { window.parent.postMessage({ type: 'rb-modal-close' }, '*'); } catch (e) {}
-      rbNotifyParentHeight();
     }
   }
 
@@ -1961,47 +1964,8 @@
       document.getElementById('rb-page').classList.remove('rb-hidden');
       loadReembolsos();
     }
-    // Tirar o rb-hidden é uma mudança de atributo (classe), não de childList —
-    // o MutationObserver lá embaixo só escuta childList, então essa revelação
-    // sozinha não disparava o recálculo de altura. É basicamente isso que
-    // cortava a tabela: o iframe ficava com a altura de antes de qualquer
-    // conteúdo aparecer.
-    rbNotifyParentHeight();
   }
   rbInit();
-
-  // Avisa a página pai (Bubble) da altura real do conteúdo via postMessage —
-  // não dá pra ler isso direto (frame.contentDocument) porque este site está
-  // num domínio diferente do Bubble, e o navegador bloqueia acesso cross-origin
-  // ao DOM do iframe. Sem isso, o iframe fica com altura fixa e o conteúdo que
-  // passar disso ganha uma barra de rolagem própria, duplicada em relação à
-  // barra da página do Bubble.
-  let rbResizeTimer = null;
-  function rbNotifyParentHeight() {
-    clearTimeout(rbResizeTimer);
-    rbResizeTimer = setTimeout(() => {
-      const height = document.documentElement.scrollHeight;
-      try { window.parent.postMessage({ type: 'rb-resize', height }, '*'); } catch (e) {}
-    }, 50);
-  }
-  window.addEventListener('load', rbNotifyParentHeight);
-  window.addEventListener('resize', rbNotifyParentHeight);
-  // attributes/attributeFilter: pega também toggles de rb-hidden (mostrar/
-  // esconder os grupos de KPI ao trocar de aba, ou revelar a página inteira
-  // em rbInit) — só childList não bastava, esses são troca de classe, não
-  // inserção/remoção de elemento.
-  new MutationObserver(rbNotifyParentHeight).observe(document.body, {
-    childList: true, subtree: true, attributes: true, attributeFilter: ['class'],
-  });
-  // ResizeObserver é o jeito certo de saber quando o TAMANHO RENDERIZADO de
-  // verdade mudou — pega casos que nem o 'resize' da window nem o
-  // MutationObserver cobrem, como zoom do navegador (o zoom muda a largura
-  // efetiva em pixels CSS e pode reflowar tudo sem disparar 'resize' a tempo,
-  // ou disparar antes do reflow terminar). Sintoma exato reportado: a 100%
-  // de zoom a tabela cortava e escondia os botões de página; a 90% não.
-  if (typeof ResizeObserver !== 'undefined') {
-    new ResizeObserver(rbNotifyParentHeight).observe(document.body);
-  }
 </script>
 </body>
 </html>
