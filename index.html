@@ -55,14 +55,14 @@
           'bianca-bronze':         '#cd7f32',
         },
         fontFamily: {
-          sans: ['Plus Jakarta Sans', 'system-ui', 'sans-serif'],
-          mono: ['IBM Plex Mono', 'monospace'],
+          sans: ['Montserrat', 'system-ui', 'sans-serif'],
+          mono: ['Montserrat', 'system-ui', 'sans-serif'],
         },
       }
     }
   };
 </script>
-<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
 <style>
   /* Sem cor de fundo própria de propósito: o iframe fica transparente e quem
      pinta o fundo é a própria página do Bubble por baixo — "o fundo do site
@@ -263,9 +263,8 @@
             <th class="text-left text-[10px] uppercase tracking-[.09em] text-bianca-text-tertiary font-bold px-5 py-2.5">Nome</th>
             <th class="text-left text-[10px] uppercase tracking-[.09em] text-bianca-text-tertiary font-bold px-5 py-2.5">Tipo</th>
             <th class="text-left text-[10px] uppercase tracking-[.09em] text-bianca-text-tertiary font-bold px-5 py-2.5">Criação</th>
-            <th class="text-left text-[10px] uppercase tracking-[.09em] text-bianca-text-tertiary font-bold px-5 py-2.5">Status solicitação</th>
+            <th class="text-left text-[10px] uppercase tracking-[.09em] text-bianca-text-tertiary font-bold px-5 py-2.5">Status</th>
             <th class="text-left text-[10px] uppercase tracking-[.09em] text-bianca-text-tertiary font-bold px-5 py-2.5">Apr. solicitação</th>
-            <th class="text-left text-[10px] uppercase tracking-[.09em] text-bianca-text-tertiary font-bold px-5 py-2.5">Status financeiro</th>
             <th class="text-left text-[10px] uppercase tracking-[.09em] text-bianca-text-tertiary font-bold px-5 py-2.5">Apr. financeiro</th>
             <th class="text-right text-[10px] uppercase tracking-[.09em] text-bianca-text-tertiary font-bold px-5 py-2.5">Valor</th>
             <th class="px-5 py-2.5"></th>
@@ -503,6 +502,7 @@
           </div>
           <div id="rb-d-meio-wrap"><p class="text-[10.5px] text-bianca-text-tertiary uppercase tracking-wide mb-1 font-bold">Meio de transporte</p><p id="rb-d-meio" class="text-sm font-medium"></p></div>
           <div id="rb-d-km-wrap" class="rb-hidden"><p class="text-[10.5px] text-bianca-text-tertiary uppercase tracking-wide mb-1 font-bold">Quilometragem</p><p id="rb-d-km" class="text-sm font-medium font-mono"></p></div>
+          <div id="rb-d-valor-wrap" class="rb-hidden"><p class="text-[10.5px] text-bianca-text-tertiary uppercase tracking-wide mb-1 font-bold">Valor total</p><p id="rb-d-valor" class="text-sm font-medium font-mono"></p></div>
         </div>
         <div class="pt-2 border-t border-bianca-border">
           <p class="text-[10.5px] text-bianca-text-tertiary">A solicitação de reembolso é feita a cada 14 dias.</p>
@@ -992,9 +992,8 @@
           <span class="text-sm font-medium">${r.nome}</span></div></td>
         <td class="px-5 py-4 text-sm text-bianca-text-secondary">${r.tipo}</td>
         <td class="px-5 py-4 text-sm text-bianca-text-secondary font-mono">${r.criacao}</td>
-        <td class="px-5 py-4">${statusBadge(r.statusSolicitacao)}</td>
+        <td class="px-5 py-4"><div class="flex flex-col gap-0.5">${rbFinStatusLine(r.statusSolicitacao, false)}${rbFinStatusLine(r.statusFinanceiro, true)}</div></td>
         <td class="px-5 py-4 text-sm text-bianca-text-secondary font-mono">${r.aprSolicitacao}</td>
-        <td class="px-5 py-4">${statusBadge(r.statusFinanceiro)}</td>
         <td class="px-5 py-4 text-sm text-bianca-text-secondary font-mono">${r.aprFinanceiro}</td>
         <td class="px-5 py-4 text-sm text-right font-mono ${r.valor ? 'font-semibold' : 'text-bianca-text-secondary'}">${r.valor || '—'}</td>
         <td class="px-5 py-4 text-right"><span class="text-bianca-brand text-sm font-medium hover:underline">Detalhes</span></td>
@@ -1083,6 +1082,13 @@
     const kmWrap = document.getElementById('rb-d-km-wrap');
     if (r.km) { kmWrap.classList.remove('rb-hidden'); document.getElementById('rb-d-km').textContent = r.km + ' km'; }
     else kmWrap.classList.add('rb-hidden');
+
+    // Valor Total só existe depois que o comprovante foi anexado (é
+    // preenchido nesse momento, nunca na solicitação inicial) — some no
+    // modal se ainda não tiver sido informado.
+    const valorWrap = document.getElementById('rb-d-valor-wrap');
+    if (r.valor) { valorWrap.classList.remove('rb-hidden'); document.getElementById('rb-d-valor').textContent = r.valor; }
+    else valorWrap.classList.add('rb-hidden');
 
     document.getElementById('rb-d-anexar-btn').classList.toggle('rb-hidden', !r.precisaAnexo);
     document.getElementById('rb-d-anexar-btn').dataset.reqIndex = i;
