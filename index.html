@@ -473,40 +473,86 @@
         <h3 class="text-lg font-bold">Detalhes da solicitação</h3>
         <button class="text-bianca-text-secondary hover:text-bianca-text-primary transition-colors" onclick="closeOverlay('rb-details-overlay')">✕</button>
       </div>
-      <div class="p-6 space-y-5 overflow-y-auto">
-        <div id="rb-d-status" class="flex items-center gap-2 flex-wrap"></div>
-        <div><p class="text-[10.5px] text-bianca-text-tertiary uppercase tracking-wide mb-1 font-bold">Solicitante</p><p id="rb-d-solicitante" class="text-sm font-medium"></p></div>
-        <div id="rb-d-viagem-info">
-          <div class="h-px bg-bianca-border"></div>
-          <div class="grid grid-cols-2 gap-4 pt-5">
-            <div><p class="text-[10.5px] text-bianca-text-tertiary uppercase tracking-wide mb-1 font-bold">Local</p><p id="rb-d-local" class="text-sm font-medium"></p></div>
-            <div><p class="text-[10.5px] text-bianca-text-tertiary uppercase tracking-wide mb-1 font-bold">Viajantes</p><p id="rb-d-viajantes" class="text-sm font-medium font-mono"></p></div>
-            <div><p class="text-[10.5px] text-bianca-text-tertiary uppercase tracking-wide mb-1 font-bold">Data de ida</p><p id="rb-d-ida" class="text-sm font-medium font-mono"></p></div>
-            <div><p class="text-[10.5px] text-bianca-text-tertiary uppercase tracking-wide mb-1 font-bold">Data de volta</p><p id="rb-d-volta" class="text-sm font-medium font-mono"></p></div>
-          </div>
-          <div class="h-px bg-bianca-border mt-5"></div>
-          <div class="grid grid-cols-2 gap-4 pt-5">
-            <div><p class="text-[10.5px] text-bianca-text-tertiary uppercase tracking-wide mb-1 font-bold">Objetivo</p><p id="rb-d-objetivo" class="text-sm font-medium"></p></div>
-            <div><p class="text-[10.5px] text-bianca-text-tertiary uppercase tracking-wide mb-1 font-bold">Nome do objetivo</p><p id="rb-d-nome-objetivo" class="text-sm font-medium"></p></div>
+      <div class="p-6 space-y-4 overflow-y-auto">
+
+        <div class="bg-bianca-bg-main border border-bianca-border-soft rounded-xl p-3.5">
+          <div class="grid grid-cols-2 gap-3">
+            <div class="space-y-1.5">
+              <p class="text-[10px] text-bianca-text-tertiary uppercase tracking-wide font-bold">Status Solicitação</p>
+              <div id="rb-d-status-solicitacao"></div>
+            </div>
+            <div class="space-y-1.5">
+              <p class="text-[10px] text-bianca-text-tertiary uppercase tracking-wide font-bold">Status Financeiro</p>
+              <div id="rb-d-status-financeiro"></div>
+            </div>
           </div>
         </div>
-        <div id="rb-d-descricao-wrap" class="rb-hidden">
-          <p class="text-[10.5px] text-bianca-text-tertiary uppercase tracking-wide mb-1 font-bold">Descrição</p>
+
+        <div class="bg-bianca-bg-main border border-bianca-border-soft rounded-xl p-3.5">
+          <p class="text-[10px] text-bianca-text-tertiary uppercase tracking-wide font-bold mb-1">Solicitante</p>
+          <p id="rb-d-solicitante" class="text-sm font-medium"></p>
+        </div>
+
+        <div id="rb-d-viagem-info" class="space-y-4">
+          <div class="grid grid-cols-2 gap-3">
+            <div class="bg-bianca-bg-main border border-bianca-border-soft rounded-xl p-3.5">
+              <p class="text-[10px] text-bianca-text-tertiary uppercase tracking-wide font-bold mb-1">Local</p>
+              <p id="rb-d-local" class="text-sm font-medium"></p>
+            </div>
+            <div class="bg-bianca-bg-main border border-bianca-border-soft rounded-xl p-3.5">
+              <p class="text-[10px] text-bianca-text-tertiary uppercase tracking-wide font-bold mb-1">Viajantes</p>
+              <p id="rb-d-viajantes" class="text-sm font-medium font-mono"></p>
+            </div>
+          </div>
+          <div class="grid grid-cols-2 gap-3">
+            <div class="bg-bianca-bg-main border border-bianca-border-soft rounded-xl p-3.5">
+              <p class="text-[10px] text-bianca-text-tertiary uppercase tracking-wide font-bold mb-1">Data de ida</p>
+              <p id="rb-d-ida" class="text-sm font-medium font-mono"></p>
+            </div>
+            <div class="bg-bianca-bg-main border border-bianca-border-soft rounded-xl p-3.5">
+              <p class="text-[10px] text-bianca-text-tertiary uppercase tracking-wide font-bold mb-1">Data de volta</p>
+              <p id="rb-d-volta" class="text-sm font-medium font-mono"></p>
+            </div>
+          </div>
+          <div class="grid grid-cols-2 gap-3">
+            <div class="bg-bianca-bg-main border border-bianca-border-soft rounded-xl p-3.5">
+              <p class="text-[10px] text-bianca-text-tertiary uppercase tracking-wide font-bold mb-1">Objetivo</p>
+              <p id="rb-d-objetivo" class="text-sm font-medium"></p>
+            </div>
+            <div class="bg-bianca-bg-main border border-bianca-border-soft rounded-xl p-3.5">
+              <p class="text-[10px] text-bianca-text-tertiary uppercase tracking-wide font-bold mb-1">Nome do objetivo</p>
+              <p id="rb-d-nome-objetivo" class="text-sm font-medium"></p>
+            </div>
+          </div>
+        </div>
+
+        <div id="rb-d-descricao-wrap" class="rb-hidden bg-bianca-bg-main border border-bianca-border-soft rounded-xl p-3.5">
+          <p class="text-[10px] text-bianca-text-tertiary uppercase tracking-wide font-bold mb-1">Descrição</p>
           <p id="rb-d-descricao" class="text-sm font-medium leading-relaxed"></p>
         </div>
-        <div class="h-px bg-bianca-border"></div>
-        <div class="space-y-3">
-          <div>
-            <p class="text-[10.5px] text-bianca-text-tertiary uppercase tracking-wide mb-1.5 font-bold">Comprovantes</p>
-            <div id="rb-d-reembolsos" class="text-sm text-bianca-text-secondary space-y-1.5"></div>
+
+        <div class="bg-bianca-bg-main border border-bianca-border-soft rounded-xl p-3.5">
+          <p class="text-[10px] text-bianca-text-tertiary uppercase tracking-wide font-bold mb-1.5">Comprovantes</p>
+          <div id="rb-d-reembolsos" class="text-sm text-bianca-text-secondary space-y-1.5"></div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div id="rb-d-meio-wrap" class="bg-bianca-bg-main border border-bianca-border-soft rounded-xl p-3.5">
+            <p class="text-[10px] text-bianca-text-tertiary uppercase tracking-wide font-bold mb-1">Meio de transporte</p>
+            <p id="rb-d-meio" class="text-sm font-medium"></p>
           </div>
-          <div id="rb-d-meio-wrap"><p class="text-[10.5px] text-bianca-text-tertiary uppercase tracking-wide mb-1 font-bold">Meio de transporte</p><p id="rb-d-meio" class="text-sm font-medium"></p></div>
-          <div id="rb-d-km-wrap" class="rb-hidden"><p class="text-[10.5px] text-bianca-text-tertiary uppercase tracking-wide mb-1 font-bold">Quilometragem</p><p id="rb-d-km" class="text-sm font-medium font-mono"></p></div>
-          <div id="rb-d-valor-wrap" class="rb-hidden"><p class="text-[10.5px] text-bianca-text-tertiary uppercase tracking-wide mb-1 font-bold">Valor total</p><p id="rb-d-valor" class="text-sm font-medium font-mono"></p></div>
+          <div id="rb-d-km-wrap" class="rb-hidden bg-bianca-bg-main border border-bianca-border-soft rounded-xl p-3.5">
+            <p class="text-[10px] text-bianca-text-tertiary uppercase tracking-wide font-bold mb-1">Quilometragem</p>
+            <p id="rb-d-km" class="text-sm font-medium font-mono"></p>
+          </div>
+          <div id="rb-d-valor-wrap" class="rb-hidden bg-bianca-bg-main border border-bianca-border-soft rounded-xl p-3.5">
+            <p class="text-[10px] text-bianca-text-tertiary uppercase tracking-wide font-bold mb-1">Valor total</p>
+            <p id="rb-d-valor" class="text-sm font-medium font-mono"></p>
+          </div>
         </div>
-        <div class="pt-2 border-t border-bianca-border">
-          <p class="text-[10.5px] text-bianca-text-tertiary">A solicitação de reembolso é feita a cada 14 dias.</p>
-        </div>
+
+        <p class="text-[10.5px] text-bianca-text-tertiary px-0.5">A solicitação de reembolso é feita a cada 14 dias.</p>
+
         <button id="rb-d-anexar-btn" class="rb-hidden rb-btn-primary w-full px-5 py-2.5 rounded-xl bg-bianca-yellow text-bianca-bg-main text-sm font-semibold glow-yellow" onclick="openAttachModal()">
           Anexar comprovantes fiscais
         </button>
@@ -1036,7 +1082,8 @@
 
   function openDetails(i) {
     const r = rbRequests[i];
-    document.getElementById('rb-d-status').innerHTML = statusBadge(r.statusSolicitacao) + statusBadge(r.statusFinanceiro);
+    document.getElementById('rb-d-status-solicitacao').innerHTML = statusBadge(r.statusSolicitacao);
+    document.getElementById('rb-d-status-financeiro').innerHTML = statusBadge(r.statusFinanceiro);
     document.getElementById('rb-d-solicitante').textContent = r.solicitante;
 
     // Viagem tem local/viajantes/datas/objetivo; Extras e Despesa direta têm
