@@ -26,6 +26,12 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<!-- Sem cache nenhum de propósito: esse site vive dentro de um iframe que
+     fica aberto por muito tempo numa aba do Bubble, e cada deploy novo
+     precisa aparecer na hora, sem precisar de Ctrl+Shift+R manual. -->
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <title>Reembolsos — Console</title>
 <script src="https://cdn.tailwindcss.com"></script>
 <script>
@@ -517,6 +523,13 @@
           <p class="text-xs text-bianca-text-secondary mt-0.5">Pode anexar mais de uma nota por categoria</p>
         </div>
         <button class="text-bianca-text-secondary hover:text-bianca-text-primary transition-colors" onclick="closeOverlay('rb-attach-overlay')">✕</button>
+      </div>
+      <div class="px-6 pt-5 shrink-0">
+        <label class="text-xs font-semibold text-bianca-text-tertiary uppercase tracking-wide">Valor total da solicitação</label>
+        <div class="relative mt-1.5">
+          <span class="absolute left-4 top-1/2 -translate-y-1/2 text-sm text-bianca-text-secondary pointer-events-none">R$</span>
+          <input id="rb-attach-valor" type="text" inputmode="decimal" placeholder="0,00" class="rb-input font-mono w-full pl-10 pr-4 py-2.5 rounded-xl bg-bianca-bg-main border border-bianca-border text-bianca-text-primary text-sm placeholder:text-bianca-text-tertiary focus:outline-none focus:border-bianca-brand" />
+        </div>
       </div>
       <div id="rb-attach-body" class="p-6 space-y-6 overflow-y-auto"></div>
       <div class="px-6 pb-6 shrink-0">
@@ -1101,6 +1114,11 @@
     if (!rbAttachments[i]) rbAttachments[i] = {};
     const categorias = TIPO_CATEGORIAS[r.tipo] || [];
 
+    // Valor só é informado aqui (no anexo de comprovantes), nunca na
+    // solicitação inicial — pré-preenche se a pessoa já tiver digitado algo
+    // antes (reabriu o modal) ou se já existir um valor salvo.
+    document.getElementById('rb-attach-valor').value = r.valorNum ? String(r.valorNum).replace('.', ',') : '';
+
     document.getElementById('rb-attach-body').innerHTML = categorias.map(cat => `
       <div>
         <div class="flex items-center justify-between mb-2">
@@ -1171,12 +1189,33 @@
 
     if (!pending.length) { closeOverlay('rb-attach-overlay'); return; }
 
+    // Valor Total só é pedido aqui, no anexo de comprovantes — nunca na
+    // solicitação inicial (só a quilometragem de carro entra nesse momento).
+    // Aceita "150", "150,00" ou "1.234,56" (formato BR).
+    const valorRaw = document.getElementById('rb-attach-valor').value.trim();
+    const valorNum = parseFloat(valorRaw.replace(/\./g, '').replace(',', '.'));
+    if (!valorRaw || isNaN(valorNum) || valorNum <= 0) {
+      rbToast('Informe o valor total da solicitação antes de enviar.', 'warning');
+      return;
+    }
+
     const btn = document.querySelector('#rb-attach-overlay .rb-btn-primary');
     const originalLabel = btn.textContent;
     btn.disabled = true;
     btn.textContent = 'Enviando...';
 
     try {
+      // Grava o valor direto na Data API antes de subir os comprovantes.
+      const patchRes = await fetch(`${RB_DATA_API_URL}/${r.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + RB_API_TOKEN },
+        body: JSON.stringify({ 'Valor Total': valorNum }),
+      });
+      if (!patchRes.ok) {
+        const body = await patchRes.text();
+        throw new Error(`HTTP ${patchRes.status}: ${body}`);
+      }
+
       for (const { cat, file } of pending) {
         const contents = await fileToBase64(file);
         const res = await fetch(RB_ANEXO_URL, {
