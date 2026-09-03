@@ -542,16 +542,16 @@
              sobrava um buraco vazio do lado. Com flex-1, cada card visível
              cresce pra ocupar o espaço que sobrar: 1 visível = largura
              toda, 2 = metade cada, 3 = distribui e quebra linha se precisar. -->
-        <div class="flex flex-wrap gap-3">
-          <div id="rb-d-meio-wrap" class="flex-1 min-w-[140px] bg-bianca-bg-main border border-bianca-border-soft rounded-xl p-3.5">
+        <div style="display:flex; flex-wrap:wrap; gap:0.75rem;">
+          <div id="rb-d-meio-wrap" class="rb-hidden bg-bianca-bg-main border border-bianca-border-soft rounded-xl p-3.5" style="flex:1 1 0%; min-width:140px;">
             <p class="text-[10px] text-bianca-text-tertiary uppercase tracking-wide font-bold mb-1">Meio de transporte</p>
             <p id="rb-d-meio" class="text-sm font-medium"></p>
           </div>
-          <div id="rb-d-km-wrap" class="rb-hidden flex-1 min-w-[140px] bg-bianca-bg-main border border-bianca-border-soft rounded-xl p-3.5">
+          <div id="rb-d-km-wrap" class="rb-hidden bg-bianca-bg-main border border-bianca-border-soft rounded-xl p-3.5" style="flex:1 1 0%; min-width:140px;">
             <p class="text-[10px] text-bianca-text-tertiary uppercase tracking-wide font-bold mb-1">Quilometragem</p>
             <p id="rb-d-km" class="text-sm font-medium font-mono"></p>
           </div>
-          <div id="rb-d-valor-wrap" class="rb-hidden flex-1 min-w-[140px] bg-bianca-bg-main border border-bianca-border-soft rounded-xl p-3.5">
+          <div id="rb-d-valor-wrap" class="rb-hidden bg-bianca-bg-main border border-bianca-border-soft rounded-xl p-3.5" style="flex:1 1 0%; min-width:140px;">
             <p class="text-[10px] text-bianca-text-tertiary uppercase tracking-wide font-bold mb-1">Valor total</p>
             <p id="rb-d-valor" class="text-sm font-medium font-mono"></p>
           </div>
